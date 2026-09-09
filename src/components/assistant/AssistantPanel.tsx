@@ -118,6 +118,18 @@ export const AssistantPanel: React.FC = () => {
 
       {/* Messages Scroll Area */}
       <div className="flex-1 p-3 overflow-y-auto space-y-3 font-sans text-xs">
+        {assistantMessages.length === 0 && !isAssistantThinking && (
+          <div className="py-8 px-2 text-center space-y-2 text-neutral-400">
+            <Bot className="h-6 w-6 mx-auto text-neutral-400 dark:text-neutral-600" />
+            <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+              DataTwin Assistant
+            </p>
+            <p className="text-[11px] text-neutral-400 dark:text-neutral-500 max-w-[200px] mx-auto leading-relaxed">
+              Ask questions about SCDP rules, formulas, classes, or click a suggestion below.
+            </p>
+          </div>
+        )}
+
         {assistantMessages.map((msg) => (
           <div
             key={msg.id}

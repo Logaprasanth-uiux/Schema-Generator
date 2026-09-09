@@ -4,3 +4,5 @@ export * from './classes';
 export * from './schema';
 export * from './assistant';
 export * from './pricing';
+export * from './auth';
+export * from './history';

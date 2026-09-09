@@ -8,6 +8,8 @@ import {
   AssistantResponse,
   GenerationCost,
   SupportingDocument,
+  User,
+  HistoryRecord,
 } from '../types';
 
 export interface ProgressCallback {
@@ -57,3 +59,19 @@ export interface IPricingService {
     schema?: SchemaModel;
   }): Promise<GenerationCost>;
 }
+
+export interface IAuthService {
+  login(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }>;
+  logout(): Promise<void>;
+  getCurrentUser(): Promise<User | null>;
+  isAuthenticated(): Promise<boolean>;
+}
+
+export interface IHistoryService {
+  listSchemas(): Promise<HistoryRecord[]>;
+  getSchema(id: string): Promise<HistoryRecord | null>;
+  saveSchema(record: HistoryRecord): Promise<HistoryRecord>;
+  createVersion(id: string, newVersion: string): Promise<HistoryRecord>;
+  deleteSchema(id: string): Promise<boolean>;
+}
+

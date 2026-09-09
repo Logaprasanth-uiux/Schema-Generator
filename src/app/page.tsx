@@ -1,7 +1,10 @@
 'use client';
 
 import React from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useWorkflow } from '../context/WorkflowContext';
+import { LoginPage } from '../components/auth/LoginPage';
+import { HistoryPage } from '../components/history/HistoryPage';
 import { AppHeader } from '../components/layout/AppHeader';
 import { WorkflowNavigation } from '../components/layout/WorkflowNavigation';
 import { GenerationModal } from '../components/layout/GenerationModal';
@@ -13,7 +16,22 @@ import { FinalOutputStage } from '../components/stages/FinalOutputStage';
 import { AssistantPanel } from '../components/assistant/AssistantPanel';
 
 export default function Home() {
-  const { workflow } = useWorkflow();
+  const { isAuthenticated, isLoading } = useAuth();
+  const { workflow, activeView } = useWorkflow();
+
+  // If initial auth check in progress, show minimal clean loader
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950 text-neutral-400 text-xs font-medium">
+        Loading DataTwin Workspace...
+      </div>
+    );
+  }
+
+  // If not authenticated, render Login Page
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const renderActiveStage = () => {
     switch (workflow.stage) {
@@ -37,19 +55,25 @@ export default function Home() {
       {/* Top Fixed Application Header */}
       <AppHeader />
 
-      {/* Main 3-Column Enterprise Workspace */}
-      <div className="flex-1 flex h-[calc(100vh-3.5rem)] overflow-hidden">
-        {/* Left Column: Fixed / Minimal Workflow Stepper Rail */}
-        <WorkflowNavigation />
+      {/* View Switcher: History Page vs. 3-Column Schema Generator Workspace */}
+      {activeView === 'history' ? (
+        <div className="flex-1 h-[calc(100vh-3.5rem)] overflow-y-auto bg-neutral-100/60 dark:bg-neutral-950 transition-colors duration-150">
+          <HistoryPage />
+        </div>
+      ) : (
+        <div className="flex-1 flex h-[calc(100vh-3.5rem)] overflow-hidden">
+          {/* Left Column: Fixed / Minimal Workflow Stepper Rail */}
+          <WorkflowNavigation />
 
-        {/* Center Column: Primary Independently Scrolling Canvas */}
-        <main className="flex-1 h-full overflow-y-auto bg-neutral-100/60 dark:bg-neutral-950 transition-colors duration-150">
-          {renderActiveStage()}
-        </main>
+          {/* Center Column: Primary Independently Scrolling Canvas */}
+          <main className="flex-1 h-full overflow-y-auto bg-neutral-100/60 dark:bg-neutral-950 transition-colors duration-150">
+            {renderActiveStage()}
+          </main>
 
-        {/* Right Column: Fixed / Independently Scrolling DataTwin Assistant */}
-        <AssistantPanel />
-      </div>
+          {/* Right Column: Fixed / Independently Scrolling DataTwin Assistant */}
+          <AssistantPanel />
+        </div>
+      )}
 
       {/* Dynamic Generation Progress Modal */}
       <GenerationModal />

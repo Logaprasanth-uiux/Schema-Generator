@@ -20,9 +20,10 @@ import {
   FinanceRequirement,
   TechnicalRequirement,
   GenerationCost,
+  HistoryRecord,
 } from '../types';
 import { sampleBusinessInput } from '../fixtures/sampleInput.fixture';
-import { requirementsService, classService, schemaService, assistantService, pricingService } from '../services';
+import { requirementsService, classService, schemaService, assistantService, pricingService, historyService } from '../services';
 
 interface WorkflowContextValue {
   workflow: SchemaGenerationWorkflow;
@@ -32,6 +33,17 @@ interface WorkflowContextValue {
   addSupportingDocument: (doc: SupportingDocument) => void;
   removeSupportingDocument: (id: string) => void;
   
+  // App View Navigation
+  activeView: 'generator' | 'history';
+  setActiveView: (view: 'generator' | 'history') => void;
+
+  // History & Edit Mode
+  currentHistoryRecord: HistoryRecord | null;
+  isEditMode: boolean;
+  loadHistorySchema: (record: HistoryRecord) => void;
+  startNewSchema: () => void;
+  saveToHistory: () => Promise<HistoryRecord>;
+
   // Theme
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
@@ -69,7 +81,7 @@ interface WorkflowContextValue {
   downloadSchemaJson: () => void;
   copySchemaJson: () => Promise<boolean>;
 
-  // Assistant Chat
+  // Assistant Chat (User-Initiated Only)
   assistantMessages: AssistantMessage[];
   isAssistantThinking: boolean;
   sendAssistantMessage: (text: string) => Promise<void>;
@@ -116,19 +128,12 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
   const [generationCost, setGenerationCost] = useState<GenerationCost>(initialGenerationCost);
 
-  const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([
-    {
-      id: 'init-1',
-      sender: 'assistant',
-      content: 'Welcome to **DataTwin Schema Generator**. Enter your high-level business requirement on the left, or click **"Load Reference Sample"** to begin.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      stageContext: 'business-input',
-      suggestedActions: [
-        { label: 'Load Prepaid Allocation Sample', actionType: 'insert-text' },
-        { label: 'What is SCDP Schema?', actionType: 'explain-concept' }
-      ]
-    }
-  ]);
+  // App Navigation & History Edit State
+  const [activeView, setActiveView] = useState<'generator' | 'history'>('generator');
+  const [currentHistoryRecord, setCurrentHistoryRecord] = useState<HistoryRecord | null>(null);
+
+  // Assistant Messages — Starts empty, responded ONLY upon explicit user interaction
+  const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([]);
   const [isAssistantThinking, setIsAssistantThinking] = useState<boolean>(false);
 
   // Initialize theme from localStorage, default to 'light'
@@ -179,7 +184,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
   }, []);
 
-  // Update generation cost from pricingService
+  // Update generation cost dynamically from pricingService
   useEffect(() => {
     pricingService
       .getEstimatedCost({
@@ -240,6 +245,47 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     }));
   }, []);
 
+  // History & Edit Mode Handlers
+  const loadHistorySchema = useCallback((record: HistoryRecord) => {
+    const loadedState = JSON.parse(JSON.stringify(record.workflowState)) as SchemaGenerationWorkflow;
+    setWorkflow(loadedState);
+    if (loadedState.schema) {
+      setEditedSchemaJson(loadedState.schema.rawJson);
+    } else {
+      setEditedSchemaJson('');
+    }
+    setCurrentHistoryRecord(record);
+    setActiveView('generator');
+  }, []);
+
+  const startNewSchema = useCallback(() => {
+    setWorkflow(initialWorkflow);
+    setEditedSchemaJson('');
+    setCurrentHistoryRecord(null);
+    setGenerationCost(initialGenerationCost);
+    setActiveView('generator');
+  }, []);
+
+  const saveToHistory = useCallback(async (): Promise<HistoryRecord> => {
+    const record: HistoryRecord = {
+      id: currentHistoryRecord ? currentHistoryRecord.id : `hist-${Date.now()}`,
+      name: workflow.title || 'Untitled SCDP Schema',
+      domain: workflow.domain || 'Financial Operations',
+      description: workflow.businessInput.highLevelRequirement || 'Custom generated SCDP schema.',
+      status: workflow.stage === 'output' ? 'Completed' : 'Draft',
+      version: currentHistoryRecord ? currentHistoryRecord.version : 'v1.0',
+      classCount: workflow.classes?.length || 0,
+      componentCount: workflow.schema?.stats.componentCount || 0,
+      createdAt: currentHistoryRecord ? currentHistoryRecord.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      workflowState: workflow,
+    };
+
+    const saved = await historyService.saveSchema(record);
+    setCurrentHistoryRecord(saved);
+    return saved;
+  }, [workflow, currentHistoryRecord]);
+
   // Generation 1: High-Level Business Requirement -> Detailed Business Requirement
   const generateBusinessRequirement = useCallback(async () => {
     setIsGeneratingModalOpen(true);
@@ -277,21 +323,6 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         generationStatus: 'completed',
         updatedAt: new Date().toISOString(),
       }));
-
-      // Notify Assistant
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'assistant',
-          content: 'Business Requirement generated from your high-level input. Review and edit the document below, then click **"Generate Requirements"** to structure it into Problem Statements, Objectives, and Technical rules.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          stageContext: 'business-input',
-          suggestedActions: [
-            { label: 'Generate Requirements', actionType: 'explain-concept' }
-          ]
-        }
-      ]);
     } catch (err) {
       console.error(err);
       setWorkflow((prev) => ({ ...prev, generationStatus: 'error' }));
@@ -333,22 +364,6 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         generationStatus: 'completed',
         updatedAt: new Date().toISOString(),
       }));
-
-      // Notify Assistant
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'assistant',
-          content: 'Structured Requirements derived with full traceability. Review Problem Statements, Business Objectives, Finance Rules, and Technical Architecture below.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          stageContext: 'requirements',
-          suggestedActions: [
-            { label: 'Explain Traceability Matrix', actionType: 'explain-concept' },
-            { label: 'Generate Schema Classes', actionType: 'jump-to-stage', payload: 'classes' }
-          ]
-        }
-      ]);
     } catch (err) {
       console.error(err);
       setWorkflow((prev) => ({ ...prev, generationStatus: 'error' }));
@@ -391,21 +406,6 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         generationStatus: 'completed',
         updatedAt: new Date().toISOString(),
       }));
-
-      // Notify Assistant
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'assistant',
-          content: `${result.length} Schema Classes generated. Inspect their grain, formulas, and dependencies below before building the final schema.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          stageContext: 'classes',
-          suggestedActions: [
-            { label: 'Generate Full Schema Tree', actionType: 'jump-to-stage', payload: 'schema' }
-          ]
-        }
-      ]);
     } catch (err) {
       console.error(err);
       setWorkflow((prev) => ({ ...prev, generationStatus: 'error' }));
@@ -450,21 +450,6 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       }));
       setEditedSchemaJson(result.rawJson);
-
-      // Notify Assistant
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'assistant',
-          content: `SCDP Schema Studio ready with ${result.stats.classCount} classes and ${result.stats.componentCount} components. You can edit the JSON directly on the right pane.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          stageContext: 'schema',
-          suggestedActions: [
-            { label: 'Proceed to Final Output', actionType: 'jump-to-stage', payload: 'output' }
-          ]
-        }
-      ]);
     } catch (err) {
       console.error(err);
       setWorkflow((prev) => ({ ...prev, generationStatus: 'error' }));
@@ -621,7 +606,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
       const parsed = JSON.parse(editedSchemaJson);
       setWorkflow((prev) => {
         if (!prev.schema) return prev;
-        return {
+        const updatedWorkflow = {
           ...prev,
           schema: {
             ...prev.schema,
@@ -631,12 +616,21 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
           },
           updatedAt: new Date().toISOString(),
         };
+        // If in edit mode, sync to history record
+        if (currentHistoryRecord) {
+          historyService.saveSchema({
+            ...currentHistoryRecord,
+            workflowState: updatedWorkflow,
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {});
+        }
+        return updatedWorkflow;
       });
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Invalid JSON format' };
     }
-  }, [editedSchemaJson]);
+  }, [editedSchemaJson, currentHistoryRecord]);
 
   const downloadSchemaJson = useCallback(() => {
     const jsonString = editedSchemaJson || (workflow.schema ? workflow.schema.rawJson : JSON.stringify(workflow, null, 2));
@@ -661,7 +655,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [editedSchemaJson, workflow.schema]);
 
-  // Assistant Chat Handlers
+  // Assistant Chat Handlers (User-Initiated Only)
   const sendAssistantMessage = useCallback(async (text: string) => {
     const userMsg: AssistantMessage = {
       id: `usr-${Date.now()}`,
@@ -716,17 +710,9 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const resetWorkflow = useCallback(() => {
     setWorkflow(initialWorkflow);
     setEditedSchemaJson('');
+    setCurrentHistoryRecord(null);
     setGenerationCost(initialGenerationCost);
-    setAssistantMessages([
-      {
-        id: 'init-reset',
-        sender: 'assistant',
-        content: 'Workflow has been reset. You can start with a new requirement or load sample data.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        stageContext: 'business-input',
-        suggestedActions: [{ label: 'Load Reference Sample', actionType: 'insert-text' }],
-      },
-    ]);
+    // Do NOT insert automatic assistant messages on reset!
   }, []);
 
   return (
@@ -738,6 +724,13 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         loadSampleInput,
         addSupportingDocument,
         removeSupportingDocument,
+        activeView,
+        setActiveView,
+        currentHistoryRecord,
+        isEditMode: !!currentHistoryRecord,
+        loadHistorySchema,
+        startNewSchema,
+        saveToHistory,
         theme,
         setTheme,
         toggleTheme,
