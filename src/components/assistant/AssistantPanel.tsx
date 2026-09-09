@@ -88,14 +88,14 @@ export const AssistantPanel: React.FC = () => {
 
   return (
     <aside
-      aria-label="DataTwin Assistant"
+      aria-label="DataTwin Schema Assistant"
       className="w-72 lg:w-80 bg-neutral-50/50 dark:bg-neutral-900/60 border-l border-neutral-200 dark:border-neutral-800 flex flex-col justify-between select-none shrink-0 h-full overflow-hidden transition-colors duration-150 z-20"
     >
       {/* Assistant Header */}
       <div className="px-3.5 py-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-white dark:bg-neutral-900 shrink-0">
         <div className="flex items-center space-x-2">
           <Bot className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
-          <h3 className="text-xs font-semibold text-neutral-900 dark:text-white">DataTwin Assistant</h3>
+          <h3 className="text-xs font-semibold text-neutral-900 dark:text-white">DataTwin Schema Assistant</h3>
         </div>
 
         <div className="flex items-center space-x-1">
@@ -122,7 +122,7 @@ export const AssistantPanel: React.FC = () => {
           <div className="py-8 px-2 text-center space-y-2 text-neutral-400">
             <Bot className="h-6 w-6 mx-auto text-neutral-400 dark:text-neutral-600" />
             <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">
-              DataTwin Assistant
+              DataTwin Schema Assistant
             </p>
             <p className="text-[11px] text-neutral-400 dark:text-neutral-500 max-w-[200px] mx-auto leading-relaxed">
               Ask questions about SCDP rules, formulas, classes, or click a suggestion below.

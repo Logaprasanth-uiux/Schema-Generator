@@ -111,7 +111,7 @@ export class MockAssistantService implements IAssistantService {
 
     return {
       message:
-        'I am the **DataTwin Assistant**. I provide contextual guidance across Business Input, Requirements Traceability, Class Generation, Schema Studio, and Final Output.',
+        'I am the **DataTwin Schema Assistant**. I provide contextual guidance across Business Input, Requirements Traceability, Class Generation, Schema Studio, and Final Output.',
     };
   }
 }

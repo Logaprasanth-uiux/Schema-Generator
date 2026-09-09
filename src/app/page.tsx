@@ -70,7 +70,7 @@ export default function Home() {
             {renderActiveStage()}
           </main>
 
-          {/* Right Column: Fixed / Independently Scrolling DataTwin Assistant */}
+          {/* Right Column: Fixed / Independently Scrolling DataTwin Schema Assistant */}
           <AssistantPanel />
         </div>
       )}
