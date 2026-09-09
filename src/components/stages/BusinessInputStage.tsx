@@ -15,6 +15,7 @@ import {
   Sliders, 
   Edit3
 } from 'lucide-react';
+import { StageActionBar } from '../layout/StageActionBar';
 import { SupportingDocument } from '../../types';
 
 export const BusinessInputStage: React.FC = () => {
@@ -84,39 +85,36 @@ export const BusinessInputStage: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* 1. Sticky Workspace Top Action Bar — Directly under Global Header (0px gap) */}
-      <div className="sticky top-0 z-20 w-full bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 px-6 py-2.5 flex items-center justify-between transition-colors shadow-xs">
-        <div>
-          <h2 className="text-xs font-bold text-neutral-900 dark:text-white leading-tight">
-            {isGenerated ? 'Review Business Requirement' : 'Generate Business Requirement'}
-          </h2>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-            {isGenerated
-              ? 'Review and edit the expanded specification before generating structured requirements.'
-              : 'Enter a high-level business requirement to begin.'}
-          </p>
-        </div>
-
-        {isGenerated ? (
-          <button
-            onClick={generateRequirements}
-            disabled={!isGeneratedBRValid}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
-          >
-            <span>Generate Requirements</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <button
-            onClick={generateBusinessRequirement}
-            disabled={!isHighLevelValid}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Generate Business Requirement</span>
-          </button>
-        )}
-      </div>
+      {/* 1. Sticky Workspace Top Action Bar */}
+      <StageActionBar
+        title={isGenerated ? 'Review Business Requirement' : 'Generate Business Requirement'}
+        description={
+          isGenerated
+            ? 'Review and edit the expanded specification before generating structured requirements.'
+            : 'Enter a high-level business requirement to begin.'
+        }
+        rightActions={
+          isGenerated ? (
+            <button
+              onClick={generateRequirements}
+              disabled={!isGeneratedBRValid}
+              className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
+            >
+              <span>Generate Requirements</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <button
+              onClick={generateBusinessRequirement}
+              disabled={!isHighLevelValid}
+              className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Generate Business Requirement</span>
+            </button>
+          )
+        }
+      />
 
       {/* 2. Main Workspace Content */}
       <div className="flex-1 p-5 lg:p-6 max-w-5xl w-full mx-auto space-y-4 pb-16">

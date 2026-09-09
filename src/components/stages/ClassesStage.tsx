@@ -11,14 +11,13 @@ import {
   ArrowLeft, 
   Edit3, 
   Plus, 
-  Trash2, 
   Sparkles, 
-  CheckCircle2, 
   AlertTriangle,
   Network,
   X
 } from 'lucide-react';
 import { SchemaClass } from '../../types';
+import { StageActionBar } from '../layout/StageActionBar';
 
 export const ClassesStage: React.FC = () => {
   const { 
@@ -44,14 +43,29 @@ export const ClassesStage: React.FC = () => {
 
   if (classes.length === 0) {
     return (
-      <div className="p-12 text-center text-neutral-600 dark:text-neutral-400">
-        <p>No domain classes generated yet. Please return to Requirements stage.</p>
-        <button
-          onClick={() => setStage('requirements')}
-          className="mt-4 px-4 py-2 bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 rounded-lg text-xs font-semibold"
-        >
-          Go to Requirements
-        </button>
+      <div className="flex flex-col min-h-full">
+        <StageActionBar
+          title="Domain Classes"
+          description="Classes not yet generated."
+          leftActions={
+            <button
+              onClick={() => setStage('requirements')}
+              className="p-1.5 text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white rounded-md transition-colors"
+              title="Back to Requirements"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          }
+        />
+        <div className="flex-1 p-12 text-center text-neutral-600 dark:text-neutral-400">
+          <p className="text-xs">No domain classes generated yet. Please return to Requirements stage.</p>
+          <button
+            onClick={() => setStage('requirements')}
+            className="mt-4 px-4 py-2 bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 rounded-lg text-xs font-semibold"
+          >
+            Go to Requirements
+          </button>
+        </div>
       </div>
     );
   }
@@ -102,258 +116,238 @@ export const ClassesStage: React.FC = () => {
   };
 
   return (
-    <div className="p-5 lg:p-6 max-w-7xl mx-auto space-y-5 pb-20">
-      {/* Header Banner */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm transition-colors">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-800 bg-neutral-100 border border-neutral-200 dark:text-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 px-2 py-0.5 rounded-md">
-                Stage 3 of 5
-              </span>
-              <span className="text-xs text-neutral-600 dark:text-neutral-400">SCDP Schema Class Architecture</span>
-            </div>
-            <h1 className="text-base font-bold text-neutral-900 dark:text-white mt-1">
-              Review & Configure Dynamic Domain Classes ({classes.length})
-            </h1>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5 max-w-3xl">
-              Each class encapsulates a specific grain, datasource, lookup resolution, math transformation, and dependency chain.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-2 shrink-0">
-            <div className="flex bg-neutral-100 dark:bg-neutral-950 p-1 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs">
+    <div className="flex flex-col min-h-full">
+      {/* 1. Sticky Workspace Top Action Bar */}
+      <StageActionBar
+        title="Domain Classes Architecture"
+        description={`${classes.length} classes configured with grains, formulas, and dependencies.`}
+        leftActions={
+          <button
+            onClick={() => setStage('requirements')}
+            className="p-1.5 text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            title="Back to Requirements"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        }
+        rightActions={
+          <>
+            {/* View Mode Toggle */}
+            <div className="flex bg-neutral-100 dark:bg-neutral-950 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs">
               <button
                 onClick={() => setViewMode('cards')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  viewMode === 'cards' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-bold shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'cards' 
+                    ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-semibold shadow-xs' 
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                 }`}
               >
-                Class Cards
+                Cards
               </button>
               <button
                 onClick={() => setViewMode('dependencies')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  viewMode === 'dependencies' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-bold shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'dependencies' 
+                    ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-semibold shadow-xs' 
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                 }`}
               >
-                Dependency Flow
+                Lineage
               </button>
             </div>
 
             <button
               onClick={() => setIsAddClassModalOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-all shadow-sm"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-all shadow-xs"
             >
               <Plus className="h-3.5 w-3.5 text-neutral-600 dark:text-neutral-400" />
               <span>Add Class</span>
             </button>
-          </div>
-        </div>
 
-        {/* Classes Category Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-neutral-100 dark:border-neutral-800 text-xs">
-          <div className="p-2.5 bg-neutral-50 dark:bg-neutral-950/60 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold">Master Classes</p>
-              <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">4 Classes (AD, CA, AP, PWBill)</p>
-            </div>
-            <Database className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-          </div>
-          <div className="p-2.5 bg-neutral-50 dark:bg-neutral-950/60 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold">Ingestion & Calc</p>
-              <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">2 Classes (PrePaidReport_I..)</p>
-            </div>
-            <Layers className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-          </div>
-          <div className="p-2.5 bg-neutral-50 dark:bg-neutral-950/60 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold">Allocation Engine</p>
-              <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">3 Classes (CostAlloc..)</p>
-            </div>
-            <Workflow className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-          </div>
-          <div className="p-2.5 bg-neutral-50 dark:bg-neutral-950/60 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-bold">Adjustment & WF</p>
-              <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 mt-0.5">2 Classes (AdjustmentAc..)</p>
-            </div>
-            <Boxes className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-          </div>
-        </div>
-      </div>
+            <button
+              onClick={generateSchema}
+              className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
+            >
+              <span>Generate Schema</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </>
+        }
+      />
 
-      {/* View Mode 1: Dependency Flow View */}
-      {viewMode === 'dependencies' && (
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-neutral-900 dark:text-white flex items-center space-x-2">
-              <Network className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-              <span>SCDP Inter-Class Dependency & Data Lineage Flow</span>
-            </h3>
-            <span className="text-[11px] text-neutral-500 dark:text-neutral-400">FETCHFROMSCHEMA • SUMFROMSCHEMA • GETGROUPFROMSCHEMA2</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Column 1: Masters */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block">
-                Level 1: Master Reference Tables
-              </span>
-              {classes.slice(0, 4).map((c) => (
-                <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
-                    <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
-                </div>
-              ))}
+      {/* 2. Main Workspace Content */}
+      <div className="flex-1 p-5 lg:p-6 max-w-5xl w-full mx-auto space-y-4 pb-16">
+        {/* View Mode 1: Dependency Flow View */}
+        {viewMode === 'dependencies' && (
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 lg:p-5 shadow-sm space-y-4 transition-colors">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-100 dark:border-neutral-800">
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white flex items-center space-x-2">
+                <Network className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
+                <span>SCDP Inter-Class Dependency & Lineage Flow</span>
+              </h3>
+              <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">Level 1 → Level 2 → Level 3</span>
             </div>
 
-            {/* Column 2: Ingestion & Math */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block">
-                Level 2: Transaction & Calculation
-              </span>
-              {classes.slice(4, 8).map((c) => (
-                <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
-                    <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
-                  <div className="pt-1 flex flex-wrap gap-1">
-                    {c.dependencies.map((d, i) => (
-                      <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
-                        Dep: {d}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Column 3: Allocations & WF */}
-            <div className="space-y-2.5">
-              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block">
-                Level 3: Allocation, Gating & WF
-              </span>
-              {classes.slice(8).map((c) => (
-                <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
-                    <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
-                  <div className="pt-1 flex flex-wrap gap-1">
-                    {c.conditions.map((cond, i) => (
-                      <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
-                        Gate: {cond}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Mode 2: Dynamic Cards Grid */}
-      {viewMode === 'cards' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {classes.map((cls) => {
-            return (
-              <div
-                key={cls.id}
-                className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 rounded-xl p-4 shadow-sm space-y-2.5 flex flex-col justify-between transition-all group"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono text-xs font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                          Class #{cls.classNumber}
-                        </span>
-                        <h3 className="text-sm font-bold text-neutral-900 dark:text-white transition-colors">
-                          {cls.className}
-                        </h3>
-                      </div>
-                      <p className="text-[10px] font-mono text-neutral-600 dark:text-neutral-400 mt-1">
-                        DS: <span className="text-neutral-900 dark:text-neutral-200 font-semibold">{cls.datasource}</span> • Grain: <span className="text-neutral-900 dark:text-neutral-200 font-semibold">{cls.grain}</span>
-                      </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Column 1: Masters */}
+              <div className="space-y-2.5">
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block px-1">
+                  Level 1: Masters
+                </span>
+                {classes.slice(0, 4).map((c) => (
+                  <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
+                      <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
                     </div>
-
-                    <button
-                      onClick={() => handleOpenEdit(cls)}
-                      className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-                      title="Edit Class"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                    </button>
+                    <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
                   </div>
+                ))}
+              </div>
 
-                  <p className="text-xs text-neutral-600 dark:text-neutral-300 line-clamp-3 leading-relaxed">
-                    {cls.purpose}
-                  </p>
-
-                  {/* Components Required Preview */}
-                  <div className="space-y-1 pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
-                      Components ({cls.components.length})
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {cls.components.map((comp) => (
-                        <span
-                          key={comp.id}
-                          className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-50 dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800"
-                        >
-                          {comp.name} <span className="text-neutral-500 dark:text-neutral-400">({comp.type})</span>
+              {/* Column 2: Ingestion & Math */}
+              <div className="space-y-2.5">
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block px-1">
+                  Level 2: Ingestion & Calc
+                </span>
+                {classes.slice(4, 8).map((c) => (
+                  <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
+                      <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
+                    <div className="pt-1 flex flex-wrap gap-1">
+                      {c.dependencies.map((d, i) => (
+                        <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                          Dep: {d}
                         </span>
                       ))}
                     </div>
                   </div>
-
-                  {/* Conditions / Gating Rules if any */}
-                  {cls.conditions.length > 0 && (
-                    <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-[11px] text-neutral-700 dark:text-neutral-300 flex items-start space-x-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5 text-neutral-500 shrink-0 mt-0.5" />
-                      <span>{cls.conditions[0]}</span>
-                    </div>
-                  )}
-
-                  {/* Lookups if any */}
-                  {cls.lookupRules.length > 0 && (
-                    <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-[10px] font-mono text-neutral-700 dark:text-neutral-300 truncate">
-                      {cls.lookupRules[0]}
-                    </div>
-                  )}
-                </div>
-
-                {/* Card Actions Footer */}
-                <div className="pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[11px]">
-                  <button
-                    onClick={() => sendAssistantMessage(`Explain the purpose and dependencies of Class ${cls.classNumber}: ${cls.className}`)}
-                    className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center space-x-1 font-medium"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    <span>AI Context</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenEdit(cls)}
-                    className="text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white font-semibold"
-                  >
-                    Configure Class →
-                  </button>
-                </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              {/* Column 3: Allocations & WF */}
+              <div className="space-y-2.5">
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wider block px-1">
+                  Level 3: Allocation & Gating
+                </span>
+                {classes.slice(8).map((c) => (
+                  <div key={c.id} className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-neutral-900 dark:text-neutral-100">#{c.classNumber} {c.className}</span>
+                      <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">{c.grain}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 dark:text-neutral-400">{c.purpose}</p>
+                    <div className="pt-1 flex flex-wrap gap-1">
+                      {c.conditions.map((cond, i) => (
+                        <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                          Gate: {cond}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Mode 2: Dynamic Cards Grid */}
+        {viewMode === 'cards' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {classes.map((cls) => {
+              return (
+                <div
+                  key={cls.id}
+                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 rounded-xl p-4 shadow-sm space-y-2.5 flex flex-col justify-between transition-all group"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-xs font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 px-2 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
+                            Class #{cls.classNumber}
+                          </span>
+                          <h3 className="text-sm font-bold text-neutral-900 dark:text-white transition-colors">
+                            {cls.className}
+                          </h3>
+                        </div>
+                        <p className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 mt-1">
+                          DS: <span className="text-neutral-800 dark:text-neutral-200 font-semibold">{cls.datasource}</span> • Grain: <span className="text-neutral-800 dark:text-neutral-200 font-semibold">{cls.grain}</span>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenEdit(cls)}
+                        className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                        title="Edit Class"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-neutral-600 dark:text-neutral-300 line-clamp-3 leading-relaxed">
+                      {cls.purpose}
+                    </p>
+
+                    {/* Components Required Preview */}
+                    <div className="space-y-1 pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 block">
+                        Components ({cls.components.length})
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {cls.components.map((comp) => (
+                          <span
+                            key={comp.id}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-50 dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800"
+                          >
+                            {comp.name} <span className="text-neutral-500 dark:text-neutral-400">({comp.type})</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Conditions / Gating Rules if any */}
+                    {cls.conditions.length > 0 && (
+                      <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-[11px] text-neutral-700 dark:text-neutral-300 flex items-start space-x-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-neutral-500 shrink-0 mt-0.5" />
+                        <span>{cls.conditions[0]}</span>
+                      </div>
+                    )}
+
+                    {/* Lookups if any */}
+                    {cls.lookupRules.length > 0 && (
+                      <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-[10px] font-mono text-neutral-700 dark:text-neutral-300 truncate">
+                        {cls.lookupRules[0]}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Actions Footer */}
+                  <div className="pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[11px]">
+                    <button
+                      onClick={() => sendAssistantMessage(`Explain the purpose and dependencies of Class ${cls.classNumber}: ${cls.className}`)}
+                      className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white flex items-center space-x-1 font-medium"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      <span>AI Context</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEdit(cls)}
+                      className="text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white font-semibold"
+                    >
+                      Configure Class →
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Edit Class Modal */}
       {editingClass && (
@@ -421,7 +415,7 @@ export const ClassesStage: React.FC = () => {
                   Components ({editingClass.components.length})
                 </label>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                  {editingClass.components.map((comp, idx) => (
+                  {editingClass.components.map((comp) => (
                     <div
                       key={comp.id}
                       className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-[11px]"
@@ -548,25 +542,6 @@ export const ClassesStage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Sticky Stage Action Bar */}
-      <div className="sticky bottom-0 z-10 -mx-6 lg:-mx-8 -mb-6 lg:-mb-8 px-6 lg:px-8 py-3 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between shadow-lg transition-colors">
-        <button
-          onClick={() => setStage('requirements')}
-          className="flex items-center space-x-2 px-3 py-1.5 text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white text-xs font-semibold transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Requirements</span>
-        </button>
-
-        <button
-          onClick={generateSchema}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-bold rounded-xl text-xs transition-all shadow-md"
-        >
-          <span>Generate Schema</span>
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   );
 };
