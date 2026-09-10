@@ -27,10 +27,29 @@ export const sampleRequirements: RequirementsModel = {
     {
       id: 'ps-3',
       code: 'PS-003',
-      title: 'Inaccurate Cross-Entity Tax Application',
+      title: 'Inaccurate Cross-Entity Tax Application & Multi-Jurisdiction Proration',
       category: 'Calculation',
-      description:
-        'Inaccurate calculation and application of tax rates on dynamically allocated expenses across different business units.',
+      description: `1.0 BUSINESS CONTEXT & TAX APPORTIONMENT PROBLEM
+Inaccurate calculation and application of tax rates on dynamically allocated expenses across different legal entities and operating jurisdictions. When prepaid expenses originate in one corporate headquarters entity but are apportioned across multiple operating subsidiaries, localized tax treatment must be deterministically resolved.
+
+2.0 JURISDICTIONAL NEXUS & TAX RESOLUTION RULES
+2.1 Destination Tax Nexus Resolution:
+    - For each allocated line item, the engine shall determine the destination entity tax profile using the delivery address and corporate tax registration ID.
+    - If the destination entity resides in a distinct tax jurisdiction from the purchasing entity, inter-company cross-border tax schedules must apply.
+2.2 Tiered Rate Calculation:
+    - State and provincial sales taxes must be computed separately from municipal or local transit surcharges.
+    - Tax exemptions must be verified against the destination business unit exemption registry (TaxExemptionCertInd).
+
+3.0 ALLOCATION & EXCLUSION RULES
+3.1 Non-Taxable Item Proration:
+    - Pure service items exempt from state sales tax shall not accrue destination tax liabilities.
+    - Mixed hardware/service bundles must unpack SKU components to apply composite tax rates accurately.
+3.2 Cross-Currency Conversion:
+    - All tax amounts must be computed in the local transaction currency and converted to functional reporting currency using daily spot exchange rates.
+
+4.0 AUDIT LINEAGE & COMPLIANCE
+4.1 The system shall maintain an immutable audit record linking each tax calculation back to the master tax authority rate table version.
+4.2 Tax liability variances exceeding 0.001 in functional currency must trigger an automated compliance review flag.`,
       isAiGenerated: true,
     },
     {
@@ -45,10 +64,80 @@ export const sampleRequirements: RequirementsModel = {
     {
       id: 'ps-5',
       code: 'PS-005',
-      title: 'Reconciliation & Variance Visibility Gap',
+      title: 'Multi-Lateral Reconciliation & Zero-Variance Ledger Interception Specification',
       category: 'Validation',
-      description:
-        'Difficulty in validating that total allocated and adjusted expenses reconcile back to the original prepaid bill extract values before ledger posting.',
+      description: `1.0 PURPOSE & FINANCIAL CONTROL MANDATE
+The system shall enforce strict mathematical reconciliation across all prepaid expense allocations, post-allocation adjustments, tax calculations, and sub-ledger postings. Any variance between the original source invoice total and the sum of all downstream line-item entries must be intercepted and prevented from posting to the General Ledger.
+
+2.0 INGESTION & PRE-VALIDATION CRITERIA
+2.1 Source Invoice Ingestion:
+    - Ingest invoice header and line-item details from enterprise AP feeds (CSV, JSON, XML, EDI 810).
+    - Validate that invoice header total exactly matches the sum of line-item base values plus stated invoice taxes.
+    - If the source extract exhibits pre-existing internal inconsistency, reject the file immediately with error code ERR-INGEST-INCONSISTENT-TOTALS.
+2.2 Data Quality & Currency Checks:
+    - Ensure currency ISO codes conform to standard ISO 4217.
+    - Ensure all fiscal period identifiers match open accounting periods in the Master Calendar table.
+
+3.0 DYNAMIC ALLOCATION SPECIFICATIONS
+3.1 Apportionment Methodology:
+    - Lookup the allocation profile associated with the invoice commodity code and requesting department.
+    - Retrieve active allocation weight configuration for the target Lines of Business (LOB).
+    - Allocation weights must strictly sum to 100.000000% (1.000000) across all designated recipient entities.
+3.2 Fractional Cent & Remainder Distribution:
+    - All intermediate arithmetic operations shall maintain 6 decimal places of precision.
+    - When round-off to 2 decimal places creates a fractional cent discrepancy (+/- 0.01), the engine shall assign the rounding delta to the primary LOB having the largest percentage weight.
+    - The rounding delta assignment must be explicitly documented in the calculation lineage trace (RoundingAdjustmentAmt).
+
+4.0 POST-ALLOCATION ADJUSTMENT WORKFLOW
+4.1 Adjustment Capture:
+    - Business unit controllers may submit re-allocation adjustments prior to ledger posting closing dates.
+    - Adjustments may shift balances between LOBs or amend general ledger account classifications.
+4.2 Multi-Lateral Balancing Rule:
+    - Every adjustment entry must be net-zero across all modified lines (SUM(AdjustmentAmt) = 0.00).
+    - Adjustments that alter the aggregate invoice total are strictly prohibited.
+4.3 Hierarchical Approval Matrix:
+    - Adjustments under ₹50,000 / $1,000 require Single Controller sign-off.
+    - Adjustments between ₹50,000 and ₹500,000 require VP Finance authorization.
+    - Adjustments exceeding ₹500,000 require CFO or Corporate Controller dual approval.
+
+5.0 MULTI-LATERAL RECONCILIATION ENGINE
+5.1 Mathematical Invariant Formulas:
+    - Invariant 1: SourceTotal == SUM(LineItemBaseAllocated) + SUM(LineItemTaxes)
+    - Invariant 2: NetAdjustmentTotal == 0.0000
+    - Invariant 3: FinalPostableTotal == SourceTotal + NetAdjustmentTotal
+    - Invariant 4: GLDebitEntriesTotal == GLCreditEntriesTotal
+5.2 Tolerance Gating:
+    - The reconciliation threshold is configured at exactly 0.0000 currency units.
+    - No soft-variance thresholds are permitted under standard enterprise financial policy.
+
+6.0 HARD-GATING INTERCEPTOR & ERROR HANDLING
+6.1 Interception Rules:
+    - If Invariant 1, 2, 3, or 4 evaluates to false, the ledger posting orchestration agent must immediately block the transaction.
+    - Set transaction status to 'EXCEPTION_RECONCILIATION_FAILED'.
+    - Generate an immutable audit exception record with detailed delta breakdown.
+6.2 Notification & SLA:
+    - Dispatch automated alert notification to the Financial Operations Queue.
+    - Escalate to Tier-2 Financial Systems Engineering if unresolved within 4 business hours.
+
+7.0 AUDIT LINEAGE & COMPLIANCE ARCHIVE
+7.1 Cryptographic Hash Sealing:
+    - Generate a SHA-256 digital signature over the complete payload:
+      SHA256(SourceInvoicePayload + AllocationMatrix + AdjustmentsArray + FinalJournalLines)
+    - Store the digital signature in the SCDP Compliance Ledger.
+7.2 Data Retention:
+    - Maintain transaction execution history for a minimum of 7 fiscal years in immutable storage.
+    - Support instantaneous retrieval for internal audit, external financial examination, and tax authority audits.
+
+8.0 EXPECTED DOWNSTREAM JOURNAL CONTRACT
+8.1 Output Format:
+    - Schema-compliant SCDP JSON transaction payload ready for SAP / Oracle / Workday General Ledger ingestion.
+    - Balanced double-entry accounting records with complete COA (Chart of Accounts) string.
+8.2 Final Verification Checklist:
+    - [x] Header validation passed
+    - [x] LOB allocation percentage verified
+    - [x] Jurisdiction tax computed
+    - [x] Controller approvals verified
+    - [x] Zero variance confirmed (Variance == 0.00)`,
       isAiGenerated: true,
     },
   ],
