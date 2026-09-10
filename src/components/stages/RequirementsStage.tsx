@@ -16,12 +16,15 @@ import {
   Trash2, 
   Check,
   History as HistoryIcon,
-  Clock
+  Clock,
+  Paperclip
 } from 'lucide-react';
 import { StageActionBar } from '../layout/StageActionBar';
 import { RequirementVersion } from '../../types';
 import { RequirementCategoryChip } from '../common/RequirementCategoryChip';
 import { VersionDiffViewer, VersionOption } from '../requirements/VersionDiffViewer';
+import { GenerateWithInfoModal } from '../common/GenerateWithInfoModal';
+import { AddNewBusinessRequirementModal } from '../common/AddNewBusinessRequirementModal';
 
 interface RequirementItem {
   id: string;
@@ -194,15 +197,6 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
-            {item.derivedFrom && (
-              <span
-                className="inline-flex items-center text-[10px] font-mono text-neutral-500 dark:text-neutral-400 bg-neutral-100/60 dark:bg-neutral-800/40 px-1.5 py-0.5 rounded select-none"
-                title={`Derived from: ${item.derivedFrom}`}
-                aria-label={`Derived from: ${item.derivedFrom}`}
-              >
-                {item.derivedFrom.toLowerCase().startsWith('from ') ? item.derivedFrom : `from ${item.derivedFrom}`}
-              </span>
-            )}
             {item.category && (
               <RequirementCategoryChip category={item.category} />
             )}
@@ -241,7 +235,6 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
 
             <div className="flex items-center justify-between pt-2 border-t border-neutral-100 dark:border-neutral-800/80 text-[11px] text-neutral-400 dark:text-neutral-500">
               <div className="flex items-center space-x-2">
-                <span>{item.isAiGenerated ? 'AI Generated' : 'User Modified'}</span>
                 {versions.length > 0 && (
                   <span className="text-[10px] font-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.2 rounded border border-neutral-200 dark:border-neutral-700">
                     {versions.length} prior {versions.length === 1 ? 'version' : 'versions'}
@@ -398,6 +391,7 @@ export const RequirementsStage: React.FC = () => {
     updateProblemStatement, 
     updateBusinessObjective, 
     updateBusinessRequirement, 
+    addBusinessRequirement,
     updateFinanceRequirement, 
     updateTechnicalRequirement,
     addAdditionalInformation,
@@ -426,10 +420,11 @@ export const RequirementsStage: React.FC = () => {
     setActiveInteraction(null);
   };
 
-  // Add information modal
-  const [isAddInfoOpen, setIsAddInfoOpen] = useState(false);
-  const [newInfoCategory, setNewInfoCategory] = useState<'business' | 'finance' | 'technical' | 'rule' | 'constraint' | 'note'>('rule');
-  const [newInfoContent, setNewInfoContent] = useState('');
+  // Add Business Requirement modal
+  const [isAddReqModalOpen, setIsAddReqModalOpen] = useState(false);
+
+  // Generate with info modal
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
   if (!req) {
     return (
@@ -460,16 +455,6 @@ export const RequirementsStage: React.FC = () => {
     );
   }
 
-  const handleCreateAddInfo = () => {
-    if (!newInfoContent.trim()) return;
-    addAdditionalInformation({
-      category: newInfoCategory,
-      content: newInfoContent.trim(),
-      author: 'User Reviewer',
-    });
-    setNewInfoContent('');
-    setIsAddInfoOpen(false);
-  };
 
   const totalReqCount = 
     req.problemStatements.length + 
@@ -496,15 +481,15 @@ export const RequirementsStage: React.FC = () => {
         rightActions={
           <>
             <button
-              onClick={() => setIsAddInfoOpen(true)}
+              onClick={() => setIsAddReqModalOpen(true)}
               className="flex items-center space-x-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5 text-neutral-600 dark:text-neutral-400" />
-              <span>Add Info</span>
+              <span>Add New Business Requirement</span>
             </button>
 
             <button
-              onClick={generateClasses}
+              onClick={() => setIsGenerateModalOpen(true)}
               className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0 cursor-pointer"
             >
               <span>Generate Classes</span>
@@ -603,11 +588,28 @@ export const RequirementsStage: React.FC = () => {
                   key={info.id}
                   className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 flex items-start justify-between space-x-2 text-xs"
                 >
-                  <div>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 mr-1.5">
-                      {info.category}
-                    </span>
-                    <span className="text-neutral-800 dark:text-neutral-200">{info.content}</span>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                        {info.category}
+                      </span>
+                      {info.content && (
+                        <span className="text-neutral-800 dark:text-neutral-200">{info.content}</span>
+                      )}
+                    </div>
+                    {info.files && info.files.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {info.files.map((file, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 text-[10px] font-mono text-neutral-700 dark:text-neutral-300 border border-neutral-300/80 dark:border-neutral-700/80"
+                          >
+                            <Paperclip className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate max-w-[140px]">{typeof file === 'string' ? file : file.name}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => removeAdditionalInformation(info.id)}
@@ -856,70 +858,26 @@ export const RequirementsStage: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Info Modal */}
-      {isAddInfoOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl text-neutral-900 dark:text-neutral-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-2 border-b border-neutral-100 dark:border-neutral-800">
-              <h3 className="text-xs font-bold flex items-center space-x-1.5">
-                <Plus className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-                <span>Add Domain Rule or Constraint</span>
-              </h3>
-              <button
-                onClick={() => setIsAddInfoOpen(false)}
-                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      {/* Generate with Info Modal */}
+      <GenerateWithInfoModal
+        isOpen={isGenerateModalOpen}
+        onClose={() => setIsGenerateModalOpen(false)}
+        onGenerate={(info) => {
+          if (info) {
+            addAdditionalInformation(info);
+          }
+          generateClasses();
+        }}
+        title="Do you want to add any additional information?"
+        generationLabel="Generate Classes"
+      />
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block mb-1">Category</label>
-                <select
-                  value={newInfoCategory}
-                  onChange={(e: any) => setNewInfoCategory(e.target.value)}
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-xs text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-neutral-500"
-                >
-                  <option value="business">Business Clarification</option>
-                  <option value="finance">Finance Rule</option>
-                  <option value="technical">Technical Architecture</option>
-                  <option value="rule">Business Rule</option>
-                  <option value="constraint">SCDP Constraint</option>
-                  <option value="note">General Note</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 block mb-1">Content / Specification</label>
-                <textarea
-                  rows={4}
-                  value={newInfoContent}
-                  onChange={(e) => setNewInfoContent(e.target.value)}
-                  placeholder="E.g. Cost allocation percentages must strictly sum to 100% per costallocationmethod..."
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg p-2.5 text-xs text-neutral-900 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:border-neutral-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-2">
-              <button
-                onClick={() => setIsAddInfoOpen(false)}
-                className="px-3.5 py-1.5 text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateAddInfo}
-                disabled={!newInfoContent.trim()}
-                className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-bold rounded-lg text-xs cursor-pointer disabled:opacity-40"
-              >
-                Save Information
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add New Business Requirement Modal */}
+      <AddNewBusinessRequirementModal
+        isOpen={isAddReqModalOpen}
+        onClose={() => setIsAddReqModalOpen(false)}
+        onSave={addBusinessRequirement}
+      />
     </div>
   );
 };

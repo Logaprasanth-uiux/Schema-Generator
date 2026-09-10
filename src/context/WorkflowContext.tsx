@@ -22,6 +22,8 @@ import {
   GenerationCost,
   HistoryRecord,
   RequirementVersion,
+  ClassVersion,
+  SchemaVersion,
 } from '../types';
 import { sampleBusinessInput } from '../fixtures/sampleInput.fixture';
 import { 
@@ -32,7 +34,10 @@ import {
   pricingService, 
   historyService,
   requirementHistoryService,
+  classHistoryService,
+  schemaHistoryService,
 } from '../services';
+import { formatClassSpecification } from '../utils/classUtils';
 
 interface WorkflowContextValue {
   workflow: SchemaGenerationWorkflow;
@@ -59,6 +64,16 @@ interface WorkflowContextValue {
   getRequirementVersions: (reqIdOrCode: string) => RequirementVersion[];
   recordRequirementVersion: (version: Omit<RequirementVersion, 'id' | 'versionNumber'>) => Promise<RequirementVersion>;
 
+  // Class-Level Version Comparison & History
+  classVersions: Record<string, ClassVersion[]>;
+  getClassVersions: (classIdOrNumber: string) => ClassVersion[];
+  recordClassVersion: (version: Omit<ClassVersion, 'id' | 'versionNumber'>) => Promise<ClassVersion>;
+
+  // Schema-Level Version Comparison & History
+  schemaVersions: SchemaVersion[];
+  getSchemaVersions: () => SchemaVersion[];
+  recordSchemaVersion: (version: Omit<SchemaVersion, 'id' | 'versionNumber'>) => Promise<SchemaVersion>;
+
   // Theme
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
@@ -82,6 +97,7 @@ interface WorkflowContextValue {
   updateProblemStatement: (id: string, updated: Partial<ProblemStatement>) => void;
   updateBusinessObjective: (id: string, updated: Partial<BusinessObjective>) => void;
   updateBusinessRequirement: (id: string, updated: Partial<BusinessRequirement>) => void;
+  addBusinessRequirement: (req: { title: string; category?: string; description: string; code?: string; derivedFromBoCode?: string }) => void;
   updateFinanceRequirement: (id: string, updated: Partial<FinanceRequirement>) => void;
   updateTechnicalRequirement: (id: string, updated: Partial<TechnicalRequirement>) => void;
   addAdditionalInformation: (info: Omit<AdditionalInformation, 'id' | 'createdAt'>) => void;
@@ -188,6 +204,72 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         [version.requirementId]: [...(prev[version.requirementId] || []), newV],
         [version.requirementCode]: [...(prev[version.requirementCode] || []), newV],
       }));
+      return newV;
+    },
+    []
+  );
+
+  // Class-Level Version History State
+  const [classVersions, setClassVersions] = useState<Record<string, ClassVersion[]>>({});
+
+  useEffect(() => {
+    classHistoryService.getAllVersions().then((versions) => {
+      setClassVersions(versions);
+    });
+  }, []);
+
+  const getClassVersions = useCallback(
+    (classIdOrNumber: string): ClassVersion[] => {
+      if (!classIdOrNumber) return [];
+      const key = classIdOrNumber.toLowerCase();
+      if (classVersions[classIdOrNumber]) return classVersions[classIdOrNumber];
+      if (classVersions[key]) return classVersions[key];
+      for (const [k, v] of Object.entries(classVersions)) {
+        if (k.toLowerCase() === key) return v;
+        if (
+          v.length > 0 &&
+          (v[0].classId.toLowerCase() === key ||
+            `class-${v[0].classNumber}`.toLowerCase() === key ||
+            v[0].className.toLowerCase() === key)
+        ) {
+          return v;
+        }
+      }
+      return [];
+    },
+    [classVersions]
+  );
+
+  const recordClassVersion = useCallback(
+    async (version: Omit<ClassVersion, 'id' | 'versionNumber'>): Promise<ClassVersion> => {
+      const newV = await classHistoryService.recordVersion(version);
+      setClassVersions((prev) => ({
+        ...prev,
+        [version.classId]: [...(prev[version.classId] || []), newV],
+        [`class-${version.classNumber}`]: [...(prev[`class-${version.classNumber}`] || []), newV],
+      }));
+      return newV;
+    },
+    []
+  );
+
+  // Schema-Level Version History State
+  const [schemaVersions, setSchemaVersions] = useState<SchemaVersion[]>([]);
+
+  useEffect(() => {
+    schemaHistoryService.getVersions().then((versions) => {
+      setSchemaVersions(versions);
+    });
+  }, []);
+
+  const getSchemaVersions = useCallback((): SchemaVersion[] => {
+    return schemaVersions;
+  }, [schemaVersions]);
+
+  const recordSchemaVersion = useCallback(
+    async (version: Omit<SchemaVersion, 'id' | 'versionNumber'>): Promise<SchemaVersion> => {
+      const newV = await schemaHistoryService.recordVersion(version);
+      setSchemaVersions((prev) => [...prev, newV]);
       return newV;
     },
     []
@@ -638,6 +720,32 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     });
   }, [capturePriorVersion]);
 
+  const addBusinessRequirement = useCallback((newReq: { title: string; category?: string; description: string; code?: string; derivedFromBoCode?: string }) => {
+    setWorkflow((prev) => {
+      if (!prev.requirements) return prev;
+      const count = prev.requirements.businessRequirements.length + 1;
+      const code = newReq.code || `BR-${String(count).padStart(3, '0')}`;
+      const item: BusinessRequirement = {
+        id: `br-${Date.now()}`,
+        code,
+        title: newReq.title,
+        category: newReq.category || 'Business Logic',
+        derivedFromBoCode: newReq.derivedFromBoCode || 'BO-001',
+        description: newReq.description,
+        isAiGenerated: false,
+      };
+      return {
+        ...prev,
+        requirements: {
+          ...prev.requirements,
+          businessRequirements: [...prev.requirements.businessRequirements, item],
+          lastEditedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, []);
+
   const updateFinanceRequirement = useCallback((id: string, updated: Partial<FinanceRequirement>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
@@ -686,6 +794,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
       ...info,
       id: `add-info-${Date.now()}`,
       createdAt: new Date().toISOString(),
+      author: info.author || 'Logaprasanth (User)',
     };
     setWorkflow((prev) => ({
       ...prev,
@@ -702,17 +811,55 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     }));
   }, []);
 
+  // Helper to record prior state of a class before overwrite
+  const capturePriorClassVersion = useCallback((
+    cls: SchemaClass,
+    changeSummary: string = 'Domain class configuration edited'
+  ) => {
+    classHistoryService.recordVersion({
+      classId: cls.id,
+      classNumber: cls.classNumber,
+      className: cls.className,
+      title: `Class #${cls.classNumber} · ${cls.className}`,
+      purpose: cls.purpose,
+      datasource: cls.datasource,
+      grain: cls.grain,
+      specification: formatClassSpecification(cls),
+      actor: 'Logaprasanth (User)',
+      timestamp: new Date().toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }),
+      changeType: 'EDIT',
+      changeSummary,
+    }).then((newV) => {
+      setClassVersions((prevMap) => ({
+        ...prevMap,
+        [cls.id]: [...(prevMap[cls.id] || []), newV],
+        [`class-${cls.classNumber}`]: [...(prevMap[`class-${cls.classNumber}`] || []), newV],
+      }));
+    });
+  }, []);
+
   // Classes Update Handlers
   const updateClass = useCallback((id: string, updated: Partial<SchemaClass>) => {
     setWorkflow((prev) => {
       if (!prev.classes) return prev;
+      const currentCls = prev.classes.find((c) => c.id === id);
+      if (currentCls) {
+        capturePriorClassVersion(currentCls);
+      }
       return {
         ...prev,
         classes: prev.classes.map((cls) => (cls.id === id ? { ...cls, ...updated } : cls)),
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorClassVersion]);
 
   const addClass = useCallback((newClass: SchemaClass) => {
     setWorkflow((prev) => ({
@@ -737,6 +884,18 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const saveSchemaChanges = useCallback((): { success: boolean; error?: string } => {
     try {
       const parsed = JSON.parse(editedSchemaJson);
+      
+      // Capture prior schema version before updating
+      if (workflow.schema && workflow.schema.rawJson && workflow.schema.rawJson !== editedSchemaJson) {
+        recordSchemaVersion({
+          schemaGroupName: workflow.schema.schemaGroupName || 'SCDP Generated Schema',
+          rawJson: workflow.schema.rawJson,
+          timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' · ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          actor: 'Logaprasanth (User)',
+          changeSummary: 'Direct edits saved in Schema Studio',
+        });
+      }
+
       setWorkflow((prev) => {
         if (!prev.schema) return prev;
         const updatedWorkflow = {
@@ -763,7 +922,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     } catch (err: any) {
       return { success: false, error: err?.message || 'Invalid JSON format' };
     }
-  }, [editedSchemaJson, currentHistoryRecord]);
+  }, [editedSchemaJson, currentHistoryRecord, workflow.schema, recordSchemaVersion]);
 
   const downloadSchemaJson = useCallback(() => {
     const jsonString = editedSchemaJson || (workflow.schema ? workflow.schema.rawJson : JSON.stringify(workflow, null, 2));
@@ -868,6 +1027,12 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         requirementVersions,
         getRequirementVersions,
         recordRequirementVersion,
+        classVersions,
+        getClassVersions,
+        recordClassVersion,
+        schemaVersions,
+        getSchemaVersions,
+        recordSchemaVersion,
         theme,
         setTheme,
 
@@ -884,6 +1049,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateProblemStatement,
         updateBusinessObjective,
         updateBusinessRequirement,
+        addBusinessRequirement,
         updateFinanceRequirement,
         updateTechnicalRequirement,
         addAdditionalInformation,

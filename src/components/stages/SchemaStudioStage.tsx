@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { 
   Search, 
@@ -15,10 +15,18 @@ import {
   ArrowLeft,
   FileCode,
   FolderTree,
-  Code2
+  Code2,
+  Edit3,
+  History as HistoryIcon,
+  Clock,
+  X,
+  Sparkles,
+  Paperclip,
+  Trash2
 } from 'lucide-react';
 import { SchemaTreeNode } from '../../types';
 import { StageActionBar } from '../layout/StageActionBar';
+import { VersionDiffViewer, VersionOption } from '../requirements/VersionDiffViewer';
 
 export const SchemaStudioStage: React.FC = () => {
   const { 
@@ -27,13 +35,26 @@ export const SchemaStudioStage: React.FC = () => {
     editedSchemaJson, 
     setEditedSchemaJson, 
     saveSchemaChanges, 
-    copySchemaJson 
+    copySchemaJson,
+    getSchemaVersions,
+    removeAdditionalInformation
   } = useWorkflow();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  const schemaVersions = getSchemaVersions();
+  const [selectedPreviousVersionId, setSelectedPreviousVersionId] = useState<string>('');
+
+  useEffect(() => {
+    if (!selectedPreviousVersionId && schemaVersions.length > 0) {
+      setSelectedPreviousVersionId(schemaVersions[schemaVersions.length - 1].id);
+    }
+  }, [schemaVersions, selectedPreviousVersionId]);
 
   useEffect(() => {
     if (!editedSchemaJson && workflow.schema) {
@@ -98,6 +119,49 @@ export const SchemaStudioStage: React.FC = () => {
       setSaveStatus({ type: 'error', message: result.error || 'Syntax error in JSON' });
     }
   };
+
+  const versionOptions: VersionOption[] = useMemo(() => {
+    return schemaVersions.map((v) => ({
+      id: v.id,
+      label: `Version ${v.versionNumber}`,
+    }));
+  }, [schemaVersions]);
+
+  const previousVersionData = useMemo(() => {
+    const selected = schemaVersions.find((v) => v.id === selectedPreviousVersionId) || schemaVersions[0];
+    if (selected) {
+      return {
+        id: selected.id,
+        title: `SCDP Schema JSON (v${selected.versionNumber})`,
+        content: selected.rawJson,
+        actor: selected.actor,
+        timestamp: selected.timestamp,
+        changeSummary: selected.changeSummary || 'Schema version generated',
+        isCurrent: false,
+      };
+    }
+    return {
+      id: 'current',
+      title: 'SCDP Schema JSON (Live Model)',
+      content: workflow.schema?.rawJson || '',
+      actor: 'Logaprasanth (User)',
+      timestamp: 'Active Current State',
+      changeSummary: 'Live editable source of truth in workspace',
+      isCurrent: true,
+    };
+  }, [schemaVersions, selectedPreviousVersionId, workflow.schema]);
+
+  const currentVersionData = useMemo(() => {
+    return {
+      id: 'current',
+      title: 'SCDP Schema JSON (Current Live)',
+      content: editedSchemaJson || workflow.schema?.rawJson || '',
+      actor: 'Logaprasanth (User)',
+      timestamp: 'Active Current State',
+      changeSummary: 'Live editable source of truth in workspace',
+      isCurrent: true,
+    };
+  }, [editedSchemaJson, workflow.schema]);
 
   const toggleNode = (nodeKey: string) => {
     setCollapsedNodes((prev) => ({
@@ -198,29 +262,40 @@ export const SchemaStudioStage: React.FC = () => {
           <>
             <button
               onClick={handleFormatJson}
-              className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+              className="px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
             >
               Format
             </button>
             <button
               onClick={handleCopy}
-              className="flex items-center space-x-1 px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+              className="flex items-center space-x-1 px-2.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-neutral-800 dark:text-neutral-200" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
             <button
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              className={`flex items-center space-x-1 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
+                isHistoryOpen
+                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 border-neutral-900 dark:border-white'
+                  : 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700'
+              }`}
+            >
+              <HistoryIcon className="h-3.5 w-3.5" />
+              <span>History</span>
+            </button>
+            <button
               onClick={handleSave}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
             >
               <Save className="h-3.5 w-3.5" />
-              <span>Save</span>
+              <span>Save Copy</span>
             </button>
             <button
               onClick={() => setStage('output')}
-              className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0"
+              className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0 cursor-pointer"
             >
-              <span>Final Output</span>
+              <span>Proceed to Final Output</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </>
@@ -229,6 +304,55 @@ export const SchemaStudioStage: React.FC = () => {
 
       {/* 2. Main Workspace Content */}
       <div className="flex-1 p-5 lg:p-6 max-w-5xl w-full mx-auto space-y-4 pb-16">
+        {/* Additional Information / Rules Banner if any */}
+        {workflow.additionalInformation.length > 0 && (
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-sm space-y-2.5 transition-colors">
+            <div className="flex items-center justify-between pb-1.5 border-b border-neutral-100 dark:border-neutral-800">
+              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 flex items-center space-x-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-neutral-500" />
+                <span>User-Appended Context & Rules ({workflow.additionalInformation.length})</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {workflow.additionalInformation.map((info) => (
+                <div
+                  key={info.id}
+                  className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 flex items-start justify-between space-x-2 text-xs"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700">
+                        {info.category}
+                      </span>
+                      {info.content && (
+                        <span className="text-neutral-800 dark:text-neutral-200">{info.content}</span>
+                      )}
+                    </div>
+                    {info.files && info.files.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {info.files.map((file, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 text-[10px] font-mono text-neutral-700 dark:text-neutral-300 border border-neutral-300/80 dark:border-neutral-700/80"
+                          >
+                            <Paperclip className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate max-w-[140px]">{typeof file === 'string' ? file : file.name}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => removeAdditionalInformation(info.id)}
+                    className="text-neutral-400 hover:text-rose-500 shrink-0 p-1 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Status Notification Banner */}
         {saveStatus.type && (
           <div
@@ -249,6 +373,59 @@ export const SchemaStudioStage: React.FC = () => {
             <button onClick={() => setSaveStatus({ type: null, message: '' })} className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white">
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Schema Version Comparison Workspace */}
+        {isHistoryOpen && (
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-sm space-y-3.5 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200 dark:border-neutral-800">
+              <div className="flex items-center space-x-2">
+                <HistoryIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
+                <h3 className="text-xs font-bold text-neutral-900 dark:text-white">
+                  Schema Version Comparison
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(false)}
+                className="px-2.5 py-1 text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white flex items-center space-x-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors cursor-pointer border border-neutral-200/80 dark:border-neutral-700/80"
+                title="Close history comparison"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>Close</span>
+              </button>
+            </div>
+
+            {schemaVersions.length === 0 ? (
+              <div className="p-6 text-center rounded-xl border border-dashed border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-950">
+                <Clock className="h-5 w-5 text-neutral-400 mx-auto mb-1.5" />
+                <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">No previous versions</p>
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  This schema has not been modified since it was initially generated.
+                </p>
+              </div>
+            ) : (
+              <VersionDiffViewer
+                previousTitle={previousVersionData.title}
+                currentTitle={currentVersionData.title}
+                previousContent={previousVersionData.content}
+                currentContent={currentVersionData.content}
+                previousActor={previousVersionData.actor}
+                previousTimestamp={previousVersionData.timestamp}
+                previousChangeSummary={previousVersionData.changeSummary}
+                isPreviousCurrent={previousVersionData.isCurrent}
+                currentActor={currentVersionData.actor}
+                currentTimestamp={currentVersionData.timestamp}
+                currentStatus={currentVersionData.changeSummary}
+                isCurrentReal={currentVersionData.isCurrent}
+                versionOptions={versionOptions}
+                selectedPreviousVersionId={selectedPreviousVersionId || schemaVersions[0]?.id || ''}
+                selectedCurrentVersionId="current"
+                onSelectPreviousVersion={(id) => setSelectedPreviousVersionId(id)}
+                onSelectCurrentVersion={() => {}}
+              />
+            )}
           </div>
         )}
 
@@ -301,30 +478,73 @@ export const SchemaStudioStage: React.FC = () => {
                   <FileCode className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
                   <h3 className="text-xs font-bold text-neutral-900 dark:text-white">Formatted SCDP JSON Editor</h3>
                 </div>
-                <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
-                  {(editedSchemaJson.length / 1024).toFixed(1)} KB • Editable
-                </span>
+                
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
+                    {(editedSchemaJson.length / 1024).toFixed(1)} KB • {isEditing ? 'Editing' : 'Read-Only'}
+                  </span>
+
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 rounded-md transition-colors cursor-pointer"
+                      title="Edit schema JSON directly"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      <span>Edit</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditedSchemaJson(workflow.schema?.rawJson || '');
+                          setIsEditing(false);
+                        }}
+                        className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-white rounded-md transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSave();
+                          setIsEditing(false);
+                        }}
+                        className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-white dark:text-neutral-900 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 rounded-md transition-colors cursor-pointer shadow-xs"
+                      >
+                        <Check className="h-3 w-3" />
+                        <span>Save</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Editor Area */}
               <div className="flex-1 min-h-[440px] relative rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 overflow-hidden">
                 <textarea
+                  readOnly={!isEditing}
                   value={editedSchemaJson}
                   onChange={(e) => setEditedSchemaJson(e.target.value)}
                   spellCheck={false}
-                  className="w-full h-full min-h-[440px] bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-200 p-4 font-mono text-xs leading-relaxed resize-none focus:outline-none"
+                  className={`w-full h-full min-h-[440px] p-4 font-mono text-xs leading-relaxed resize-none focus:outline-none transition-colors ${
+                    !isEditing
+                      ? 'bg-neutral-50/50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 select-text cursor-default'
+                      : 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100'
+                  }`}
                 />
               </div>
             </div>
 
             <div className="pt-2.5 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
-              <span>Edit any value directly • Click Save to commit</span>
-              <button
-                onClick={handleFormatJson}
-                className="text-neutral-700 dark:text-neutral-300 hover:underline font-semibold"
-              >
-                Re-indent JSON
-              </button>
+              <span>
+                {isEditing
+                  ? 'Editing enabled • Click Save to commit changes to workspace model'
+                  : 'Read-only view • Click Edit above to modify JSON'}
+              </span>
+              <span className="font-mono text-neutral-500 dark:text-neutral-400">Deterministic SCDP Model</span>
             </div>
           </div>
         </div>

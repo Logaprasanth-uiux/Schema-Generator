@@ -33,3 +33,13 @@ export interface SchemaModel {
   };
   validationResult: SchemaValidationResult;
 }
+
+export interface SchemaVersion {
+  id: string;
+  versionNumber: number;
+  schemaGroupName: string;
+  rawJson: string;
+  timestamp: string;
+  actor: string;
+  changeSummary?: string;
+}

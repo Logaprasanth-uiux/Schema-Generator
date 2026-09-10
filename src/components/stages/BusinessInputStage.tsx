@@ -106,7 +106,7 @@ export const BusinessInputStage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => updateBusinessInput({ highLevelRequirement: '' })}
-                  className="hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                  className="hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
                 >
                   Clear
                 </button>
@@ -147,7 +147,7 @@ export const BusinessInputStage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => updateBusinessInput({ generatedBusinessRequirement: '' })}
-                  className="hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                  className="hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors cursor-pointer"
                 >
                   Clear
                 </button>
@@ -175,7 +175,7 @@ export const BusinessInputStage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            className="w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+            className="w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer"
           >
             <div className="flex items-center space-x-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
               <Sliders className="h-3.5 w-3.5 text-neutral-500" />

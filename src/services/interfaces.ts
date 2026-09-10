@@ -11,6 +11,8 @@ import {
   User,
   HistoryRecord,
   RequirementVersion,
+  ClassVersion,
+  SchemaVersion,
 } from '../types';
 
 export interface ProgressCallback {
@@ -82,4 +84,14 @@ export interface IRequirementHistoryService {
   getAllVersions(): Promise<Record<string, RequirementVersion[]>>;
 }
 
+export interface IClassHistoryService {
+  getVersions(classId: string): Promise<ClassVersion[]>;
+  recordVersion(version: Omit<ClassVersion, 'id' | 'versionNumber'>): Promise<ClassVersion>;
+  getAllVersions(): Promise<Record<string, ClassVersion[]>>;
+}
+
+export interface ISchemaHistoryService {
+  getVersions(): Promise<SchemaVersion[]>;
+  recordVersion(version: Omit<SchemaVersion, 'id' | 'versionNumber'>): Promise<SchemaVersion>;
+}
 

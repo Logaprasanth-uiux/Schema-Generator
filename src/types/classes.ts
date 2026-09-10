@@ -1,7 +1,7 @@
 export interface SchemaComponent {
   id: string;
   name: string;
-  type: 'MATH' | 'FETCHFROMSCHEMA' | 'SUMFROMSCHEMA' | 'GETGROUPFROMSCHEMA2';
+  type: 'MATH' | 'FETCHFROMSCHEMA' | 'SUMFROMSCHEMA' | 'GETGROUPFROMSCHEMA2' | string;
   sourceClass?: string;
   sourceColumn?: string;
   expression?: string;
@@ -29,4 +29,21 @@ export interface SchemaClass {
   associatedRequirements?: string[];
   metadata?: Record<string, unknown>;
   isCustomAdded?: boolean;
+}
+
+export interface ClassVersion {
+  id: string;
+  classId: string;
+  classNumber: number;
+  className: string;
+  versionNumber: number;
+  title: string;
+  purpose: string;
+  datasource: string;
+  grain: string;
+  specification: string;
+  actor: string;
+  timestamp: string;
+  changeType?: 'INITIAL_GENERATION' | 'EDIT' | 'REGENERATION' | string;
+  changeSummary: string;
 }

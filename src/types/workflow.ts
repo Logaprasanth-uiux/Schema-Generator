@@ -28,12 +28,19 @@ export interface SupportingDocument {
   previewText?: string;
 }
 
+export interface AttachedInfoFile {
+  name: string;
+  size?: number;
+  type?: string;
+}
+
 export interface AdditionalInformation {
   id: string;
   category: 'business' | 'finance' | 'technical' | 'rule' | 'constraint' | 'note';
   content: string;
+  files?: AttachedInfoFile[];
   createdAt: string;
-  author: string;
+  author?: string;
 }
 
 export interface BusinessInput {
