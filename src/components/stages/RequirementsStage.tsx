@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { 
   Edit3, 
@@ -8,15 +8,20 @@ import {
   Plus, 
   Sparkles, 
   ArrowRight, 
-  ArrowLeft,
-  FileCheck,
-  ShieldCheck,
-  Calculator,
-  Workflow as WorkflowIcon,
-  Trash2,
-  Check
+  ArrowLeft, 
+  FileCheck, 
+  ShieldCheck, 
+  Calculator, 
+  Workflow as WorkflowIcon, 
+  Trash2, 
+  Check,
+  History as HistoryIcon,
+  Clock
 } from 'lucide-react';
 import { StageActionBar } from '../layout/StageActionBar';
+import { RequirementVersion } from '../../types';
+import { RequirementCategoryChip } from '../common/RequirementCategoryChip';
+import { VersionDiffViewer, VersionOption } from '../requirements/VersionDiffViewer';
 
 interface RequirementItem {
   id: string;
@@ -31,23 +36,110 @@ interface RequirementItem {
 interface RequirementRowProps {
   item: RequirementItem;
   isEditing: boolean;
+  isHistoryOpen: boolean;
+  versions: RequirementVersion[];
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onSave: (newTitle: string, newDescription: string) => void;
+  onSave: (title: string, description: string) => void;
+  onOpenHistory: () => void;
+  onCloseHistory: () => void;
 }
 
 const RequirementRow: React.FC<RequirementRowProps> = ({
   item,
   isEditing,
+  isHistoryOpen,
+  versions,
   onStartEdit,
   onCancelEdit,
   onSave,
+  onOpenHistory,
+  onCloseHistory,
 }) => {
   const [editTitle, setEditTitle] = useState(item.title);
   const [editDescription, setEditDescription] = useState(item.description);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const adjustTextareaHeight = React.useCallback(() => {
+  // Sorted historical versions (newest first)
+  const sortedHist = useMemo(() => {
+    return [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
+  }, [versions]);
+
+  // Selected Previous Version (Left) and Selected Current Version (Right)
+  const [selectedPreviousVersionId, setSelectedPreviousVersionId] = useState<string>('');
+  const [selectedCurrentVersionId, setSelectedCurrentVersionId] = useState<string>('current');
+
+  useEffect(() => {
+    if (versions.length > 0) {
+      const latestPrev = sortedHist[0];
+      setSelectedPreviousVersionId(latestPrev ? latestPrev.id : '');
+      setSelectedCurrentVersionId('current');
+    } else {
+      setSelectedPreviousVersionId('');
+      setSelectedCurrentVersionId('current');
+    }
+  }, [versions, isHistoryOpen, sortedHist]);
+
+  // Compact selectable options for dropdowns
+  const versionOptions: VersionOption[] = useMemo(() => {
+    const currentOpt: VersionOption = {
+      id: 'current',
+      label: 'Current',
+    };
+
+    const histOpts: VersionOption[] = sortedHist.map((v) => ({
+      id: v.id,
+      label: `v${v.versionNumber}`,
+    }));
+
+    return [currentOpt, ...histOpts];
+  }, [sortedHist]);
+
+  // Resolve snapshot data for selected version
+  const resolveVersionData = useCallback(
+    (id: string) => {
+      if (id === 'current' || !id) {
+        return {
+          id: 'current',
+          isCurrent: true,
+          title: item.title,
+          content: item.description,
+          actor: 'Logaprasanth (User)',
+          timestamp: 'Active Current State',
+          changeSummary: 'Live editable source of truth in workspace',
+        };
+      }
+
+      const hist = versions.find((v) => v.id === id) || sortedHist[0];
+      if (hist) {
+        return {
+          id: hist.id,
+          isCurrent: false,
+          title: hist.title,
+          content: hist.description,
+          actor: hist.actor,
+          timestamp: hist.timestamp,
+          changeSummary: hist.changeSummary || 'Requirement edited',
+        };
+      }
+
+      return {
+        id: 'current',
+        isCurrent: true,
+        title: item.title,
+        content: item.description,
+        actor: 'Logaprasanth (User)',
+        timestamp: 'Active Current State',
+        changeSummary: 'Live editable source of truth in workspace',
+      };
+    },
+    [item.title, item.description, versions, sortedHist]
+  );
+
+  const previousData = useMemo(() => resolveVersionData(selectedPreviousVersionId), [resolveVersionData, selectedPreviousVersionId]);
+  const currentData = useMemo(() => resolveVersionData(selectedCurrentVersionId), [resolveVersionData, selectedCurrentVersionId]);
+
+  const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
@@ -59,7 +151,7 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
   }, []);
 
   // Sync state on edit activation
-  React.useEffect(() => {
+  useEffect(() => {
     if (isEditing) {
       setEditTitle(item.title);
       setEditDescription(item.description);
@@ -67,7 +159,7 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
   }, [isEditing, item.title, item.description]);
 
   // Adjust height on edit or content change
-  React.useEffect(() => {
+  useEffect(() => {
     if (isEditing) {
       const frameId = requestAnimationFrame(adjustTextareaHeight);
       return () => cancelAnimationFrame(frameId);
@@ -84,7 +176,7 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
   return (
     <div
       className={`rounded-xl border transition-all overflow-hidden ${
-        isEditing
+        isEditing || isHistoryOpen
           ? 'bg-neutral-100/90 dark:bg-neutral-800/90 border-neutral-400 dark:border-neutral-600 shadow-sm ring-1 ring-neutral-400/20 dark:ring-neutral-600/30'
           : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 shadow-2xs'
       }`}
@@ -103,38 +195,59 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
 
           <div className="flex items-center space-x-2 shrink-0">
             {item.derivedFrom && (
-              <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-200/80 dark:border-neutral-700/80">
-                {item.derivedFrom}
+              <span
+                className="inline-flex items-center text-[10px] font-mono text-neutral-500 dark:text-neutral-400 bg-neutral-100/60 dark:bg-neutral-800/40 px-1.5 py-0.5 rounded select-none"
+                title={`Derived from: ${item.derivedFrom}`}
+                aria-label={`Derived from: ${item.derivedFrom}`}
+              >
+                {item.derivedFrom.toLowerCase().startsWith('from ') ? item.derivedFrom : `from ${item.derivedFrom}`}
               </span>
             )}
             {item.category && (
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200/80 dark:border-neutral-700/80">
-                {item.category}
-              </span>
+              <RequirementCategoryChip category={item.category} />
             )}
 
-            {!isEditing && (
-              <button
-                type="button"
-                onClick={onStartEdit}
-                className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
-                title="Edit requirement"
-              >
-                <Edit3 className="h-3 w-3" />
-                <span>Edit</span>
-              </button>
+            {!isEditing && !isHistoryOpen && (
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={onOpenHistory}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  title="Compare previous versions against current"
+                >
+                  <HistoryIcon className="h-3 w-3 text-neutral-500" />
+                  <span>History</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onStartEdit}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  title="Edit requirement"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Edit</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
 
-        {!isEditing && (
+        {!isEditing && !isHistoryOpen && (
           <>
             <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed line-clamp-3 font-sans">
               {item.description}
             </p>
 
             <div className="flex items-center justify-between pt-2 border-t border-neutral-100 dark:border-neutral-800/80 text-[11px] text-neutral-400 dark:text-neutral-500">
-              <span>{item.isAiGenerated ? 'AI Generated' : 'User Modified'}</span>
+              <div className="flex items-center space-x-2">
+                <span>{item.isAiGenerated ? 'AI Generated' : 'User Modified'}</span>
+                {versions.length > 0 && (
+                  <span className="text-[10px] font-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.2 rounded border border-neutral-200 dark:border-neutral-700">
+                    {versions.length} prior {versions.length === 1 ? 'version' : 'versions'}
+                  </span>
+                )}
+              </div>
               <span className="font-mono text-[10px]">{charCount.toLocaleString()} chars</span>
             </div>
           </>
@@ -203,14 +316,85 @@ const RequirementRow: React.FC<RequirementRowProps> = ({
           </div>
         </div>
       )}
+
+      {/* Expanded Inline History Comparison Workspace (Selectable Version A on Left, Selectable Version B on Right with Diff Highlighting) */}
+      {isHistoryOpen && (
+        <div className="border-t border-neutral-200 dark:border-neutral-700/80 bg-neutral-50/40 dark:bg-neutral-950 p-4 space-y-3.5 animate-in fade-in duration-150">
+          {/* Comparison Header */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200 dark:border-neutral-800">
+            <div>
+              <div className="flex items-center space-x-2">
+                <HistoryIcon className="h-3.5 w-3.5 text-neutral-600 dark:text-neutral-400" />
+                <span className="text-xs font-bold text-neutral-900 dark:text-white">
+                  Requirement Version Comparison
+                </span>
+              </div>
+              <div className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+                <span className="font-mono font-semibold text-neutral-700 dark:text-neutral-300">{item.code}</span> · {item.title}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onCloseHistory}
+              className="px-2.5 py-1 text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white flex items-center space-x-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors cursor-pointer border border-neutral-200/80 dark:border-neutral-700/80"
+              title="Close history comparison"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>Close</span>
+            </button>
+          </div>
+
+          {versions.length === 0 ? (
+            <div className="p-6 text-center rounded-xl border border-dashed border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+              <Clock className="h-5 w-5 text-neutral-400 mx-auto mb-1.5" />
+              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">No previous versions</p>
+              <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                This requirement has not been modified since it was initially generated.
+              </p>
+            </div>
+          ) : (
+            <VersionDiffViewer
+              previousTitle={previousData.title}
+              currentTitle={currentData.title}
+              previousContent={previousData.content}
+              currentContent={currentData.content}
+              previousActor={previousData.actor}
+              previousTimestamp={previousData.timestamp}
+              previousChangeSummary={previousData.changeSummary}
+              isPreviousCurrent={previousData.isCurrent}
+              currentActor={currentData.actor}
+              currentTimestamp={currentData.timestamp}
+              currentStatus={currentData.changeSummary}
+              isCurrentReal={currentData.isCurrent}
+              versionOptions={versionOptions}
+              selectedPreviousVersionId={selectedPreviousVersionId}
+              selectedCurrentVersionId={selectedCurrentVersionId}
+              onSelectPreviousVersion={(id) => {
+                if (id !== selectedCurrentVersionId) {
+                  setSelectedPreviousVersionId(id);
+                }
+              }}
+              onSelectCurrentVersion={(id) => {
+                if (id !== selectedPreviousVersionId) {
+                  setSelectedCurrentVersionId(id);
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+
 
 export const RequirementsStage: React.FC = () => {
   const { 
     workflow, 
     setStage,
+    getRequirementVersions,
     updateProblemStatement, 
     updateBusinessObjective, 
     updateBusinessRequirement, 
@@ -224,8 +408,23 @@ export const RequirementsStage: React.FC = () => {
   const req = workflow.requirements;
   const [activeTab, setActiveTab] = useState<'all' | 'ps' | 'bo' | 'br' | 'fr' | 'tr'>('all');
   
-  // Single active editing card state
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  // Single active expanded card interaction across the stage (either inline edit or inline history comparison)
+  const [activeInteraction, setActiveInteraction] = useState<{
+    type: 'edit' | 'history';
+    id: string;
+  } | null>(null);
+
+  const handleStartEdit = (id: string) => {
+    setActiveInteraction({ type: 'edit', id });
+  };
+
+  const handleOpenHistory = (id: string) => {
+    setActiveInteraction({ type: 'history', id });
+  };
+
+  const handleCloseInteraction = () => {
+    setActiveInteraction(null);
+  };
 
   // Add information modal
   const [isAddInfoOpen, setIsAddInfoOpen] = useState(false);
@@ -436,26 +635,36 @@ export const RequirementsStage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {req.problemStatements.map((ps) => (
-                  <RequirementRow
-                    key={ps.id}
-                    item={{
-                      id: ps.id,
-                      code: ps.code,
-                      title: ps.title,
-                      description: ps.description,
-                      category: ps.category,
-                      isAiGenerated: ps.isAiGenerated,
-                    }}
-                    isEditing={editingCardId === ps.id}
-                    onStartEdit={() => setEditingCardId(ps.id)}
-                    onCancelEdit={() => setEditingCardId(null)}
-                    onSave={(title, description) => {
-                      updateProblemStatement(ps.id, { title, description });
-                      setEditingCardId(null);
-                    }}
-                  />
-                ))}
+                {req.problemStatements.map((ps) => {
+                  const versions = getRequirementVersions(ps.id).length > 0 
+                    ? getRequirementVersions(ps.id) 
+                    : getRequirementVersions(ps.code);
+
+                  return (
+                    <RequirementRow
+                      key={ps.id}
+                      item={{
+                        id: ps.id,
+                        code: ps.code,
+                        title: ps.title,
+                        description: ps.description,
+                        category: ps.category,
+                        isAiGenerated: ps.isAiGenerated,
+                      }}
+                      isEditing={activeInteraction?.type === 'edit' && activeInteraction?.id === ps.id}
+                      isHistoryOpen={activeInteraction?.type === 'history' && activeInteraction?.id === ps.id}
+                      versions={versions}
+                      onStartEdit={() => handleStartEdit(ps.id)}
+                      onCancelEdit={handleCloseInteraction}
+                      onOpenHistory={() => handleOpenHistory(ps.id)}
+                      onCloseHistory={handleCloseInteraction}
+                      onSave={(title, description) => {
+                        updateProblemStatement(ps.id, { title, description });
+                        handleCloseInteraction();
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -472,26 +681,36 @@ export const RequirementsStage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {req.businessObjectives.map((bo) => (
-                  <RequirementRow
-                    key={bo.id}
-                    item={{
-                      id: bo.id,
-                      code: bo.code,
-                      title: bo.title,
-                      description: bo.description,
-                      derivedFrom: `from ${bo.derivedFromPsCode}`,
-                      isAiGenerated: bo.isAiGenerated,
-                    }}
-                    isEditing={editingCardId === bo.id}
-                    onStartEdit={() => setEditingCardId(bo.id)}
-                    onCancelEdit={() => setEditingCardId(null)}
-                    onSave={(title, description) => {
-                      updateBusinessObjective(bo.id, { title, description });
-                      setEditingCardId(null);
-                    }}
-                  />
-                ))}
+                {req.businessObjectives.map((bo) => {
+                  const versions = getRequirementVersions(bo.id).length > 0 
+                    ? getRequirementVersions(bo.id) 
+                    : getRequirementVersions(bo.code);
+
+                  return (
+                    <RequirementRow
+                      key={bo.id}
+                      item={{
+                        id: bo.id,
+                        code: bo.code,
+                        title: bo.title,
+                        description: bo.description,
+                        derivedFrom: `from ${bo.derivedFromPsCode}`,
+                        isAiGenerated: bo.isAiGenerated,
+                      }}
+                      isEditing={activeInteraction?.type === 'edit' && activeInteraction?.id === bo.id}
+                      isHistoryOpen={activeInteraction?.type === 'history' && activeInteraction?.id === bo.id}
+                      versions={versions}
+                      onStartEdit={() => handleStartEdit(bo.id)}
+                      onCancelEdit={handleCloseInteraction}
+                      onOpenHistory={() => handleOpenHistory(bo.id)}
+                      onCloseHistory={handleCloseInteraction}
+                      onSave={(title, description) => {
+                        updateBusinessObjective(bo.id, { title, description });
+                        handleCloseInteraction();
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -508,27 +727,37 @@ export const RequirementsStage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {req.businessRequirements.map((br) => (
-                  <RequirementRow
-                    key={br.id}
-                    item={{
-                      id: br.id,
-                      code: br.code,
-                      title: br.title,
-                      description: br.description,
-                      category: br.category,
-                      derivedFrom: `from ${br.derivedFromBoCode}`,
-                      isAiGenerated: br.isAiGenerated,
-                    }}
-                    isEditing={editingCardId === br.id}
-                    onStartEdit={() => setEditingCardId(br.id)}
-                    onCancelEdit={() => setEditingCardId(null)}
-                    onSave={(title, description) => {
-                      updateBusinessRequirement(br.id, { title, description });
-                      setEditingCardId(null);
-                    }}
-                  />
-                ))}
+                {req.businessRequirements.map((br) => {
+                  const versions = getRequirementVersions(br.id).length > 0 
+                    ? getRequirementVersions(br.id) 
+                    : getRequirementVersions(br.code);
+
+                  return (
+                    <RequirementRow
+                      key={br.id}
+                      item={{
+                        id: br.id,
+                        code: br.code,
+                        title: br.title,
+                        description: br.description,
+                        category: br.category,
+                        derivedFrom: `from ${br.derivedFromBoCode}`,
+                        isAiGenerated: br.isAiGenerated,
+                      }}
+                      isEditing={activeInteraction?.type === 'edit' && activeInteraction?.id === br.id}
+                      isHistoryOpen={activeInteraction?.type === 'history' && activeInteraction?.id === br.id}
+                      versions={versions}
+                      onStartEdit={() => handleStartEdit(br.id)}
+                      onCancelEdit={handleCloseInteraction}
+                      onOpenHistory={() => handleOpenHistory(br.id)}
+                      onCloseHistory={handleCloseInteraction}
+                      onSave={(title, description) => {
+                        updateBusinessRequirement(br.id, { title, description });
+                        handleCloseInteraction();
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -545,26 +774,36 @@ export const RequirementsStage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {req.financeRequirements.map((fr) => (
-                  <RequirementRow
-                    key={fr.id}
-                    item={{
-                      id: fr.id,
-                      code: fr.code,
-                      title: fr.title,
-                      description: fr.description,
-                      derivedFrom: `from ${fr.derivedFromBrCode}`,
-                      isAiGenerated: fr.isAiGenerated,
-                    }}
-                    isEditing={editingCardId === fr.id}
-                    onStartEdit={() => setEditingCardId(fr.id)}
-                    onCancelEdit={() => setEditingCardId(null)}
-                    onSave={(title, description) => {
-                      updateFinanceRequirement(fr.id, { title, description });
-                      setEditingCardId(null);
-                    }}
-                  />
-                ))}
+                {req.financeRequirements.map((fr) => {
+                  const versions = getRequirementVersions(fr.id).length > 0 
+                    ? getRequirementVersions(fr.id) 
+                    : getRequirementVersions(fr.code);
+
+                  return (
+                    <RequirementRow
+                      key={fr.id}
+                      item={{
+                        id: fr.id,
+                        code: fr.code,
+                        title: fr.title,
+                        description: fr.description,
+                        derivedFrom: `from ${fr.derivedFromBrCode}`,
+                        isAiGenerated: fr.isAiGenerated,
+                      }}
+                      isEditing={activeInteraction?.type === 'edit' && activeInteraction?.id === fr.id}
+                      isHistoryOpen={activeInteraction?.type === 'history' && activeInteraction?.id === fr.id}
+                      versions={versions}
+                      onStartEdit={() => handleStartEdit(fr.id)}
+                      onCancelEdit={handleCloseInteraction}
+                      onOpenHistory={() => handleOpenHistory(fr.id)}
+                      onCloseHistory={handleCloseInteraction}
+                      onSave={(title, description) => {
+                        updateFinanceRequirement(fr.id, { title, description });
+                        handleCloseInteraction();
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -581,26 +820,36 @@ export const RequirementsStage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {req.technicalRequirements.map((tr) => (
-                  <RequirementRow
-                    key={tr.id}
-                    item={{
-                      id: tr.id,
-                      code: tr.code,
-                      title: tr.title,
-                      description: tr.description,
-                      derivedFrom: `from ${tr.derivedFromFrCodes.join(', ')}`,
-                      isAiGenerated: tr.isAiGenerated,
-                    }}
-                    isEditing={editingCardId === tr.id}
-                    onStartEdit={() => setEditingCardId(tr.id)}
-                    onCancelEdit={() => setEditingCardId(null)}
-                    onSave={(title, description) => {
-                      updateTechnicalRequirement(tr.id, { title, description });
-                      setEditingCardId(null);
-                    }}
-                  />
-                ))}
+                {req.technicalRequirements.map((tr) => {
+                  const versions = getRequirementVersions(tr.id).length > 0 
+                    ? getRequirementVersions(tr.id) 
+                    : getRequirementVersions(tr.code);
+
+                  return (
+                    <RequirementRow
+                      key={tr.id}
+                      item={{
+                        id: tr.id,
+                        code: tr.code,
+                        title: tr.title,
+                        description: tr.description,
+                        derivedFrom: `from ${tr.derivedFromFrCodes.join(', ')}`,
+                        isAiGenerated: tr.isAiGenerated,
+                      }}
+                      isEditing={activeInteraction?.type === 'edit' && activeInteraction?.id === tr.id}
+                      isHistoryOpen={activeInteraction?.type === 'history' && activeInteraction?.id === tr.id}
+                      versions={versions}
+                      onStartEdit={() => handleStartEdit(tr.id)}
+                      onCancelEdit={handleCloseInteraction}
+                      onOpenHistory={() => handleOpenHistory(tr.id)}
+                      onCloseHistory={handleCloseInteraction}
+                      onSave={(title, description) => {
+                        updateTechnicalRequirement(tr.id, { title, description });
+                        handleCloseInteraction();
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -674,3 +923,4 @@ export const RequirementsStage: React.FC = () => {
     </div>
   );
 };
+

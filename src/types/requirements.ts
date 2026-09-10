@@ -96,3 +96,17 @@ export interface RequirementsModel {
   generatedAt: string;
   lastEditedAt?: string;
 }
+
+export interface RequirementVersion {
+  id: string;
+  requirementId: string;
+  requirementCode: string;
+  versionNumber: number;
+  title: string;
+  description: string;
+  actor: string;
+  timestamp: string;
+  changeType?: 'INITIAL_GENERATION' | 'EDIT' | 'REGENERATION' | 'TITLE_UPDATE' | string;
+  changeSummary: string;
+}
+

@@ -10,6 +10,7 @@ import {
   SupportingDocument,
   User,
   HistoryRecord,
+  RequirementVersion,
 } from '../types';
 
 export interface ProgressCallback {
@@ -74,4 +75,11 @@ export interface IHistoryService {
   createVersion(id: string, newVersion: string): Promise<HistoryRecord>;
   deleteSchema(id: string): Promise<boolean>;
 }
+
+export interface IRequirementHistoryService {
+  getVersions(requirementId: string): Promise<RequirementVersion[]>;
+  recordVersion(version: Omit<RequirementVersion, 'id' | 'versionNumber'>): Promise<RequirementVersion>;
+  getAllVersions(): Promise<Record<string, RequirementVersion[]>>;
+}
+
 

@@ -21,9 +21,18 @@ import {
   TechnicalRequirement,
   GenerationCost,
   HistoryRecord,
+  RequirementVersion,
 } from '../types';
 import { sampleBusinessInput } from '../fixtures/sampleInput.fixture';
-import { requirementsService, classService, schemaService, assistantService, pricingService, historyService } from '../services';
+import { 
+  requirementsService, 
+  classService, 
+  schemaService, 
+  assistantService, 
+  pricingService, 
+  historyService,
+  requirementHistoryService,
+} from '../services';
 
 interface WorkflowContextValue {
   workflow: SchemaGenerationWorkflow;
@@ -45,10 +54,16 @@ interface WorkflowContextValue {
   startNewSchema: () => void;
   saveToHistory: () => Promise<HistoryRecord>;
 
+  // Requirement-Level Version Comparison & History
+  requirementVersions: Record<string, RequirementVersion[]>;
+  getRequirementVersions: (reqIdOrCode: string) => RequirementVersion[];
+  recordRequirementVersion: (version: Omit<RequirementVersion, 'id' | 'versionNumber'>) => Promise<RequirementVersion>;
+
   // Theme
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
+
 
   // Generation cost
   generationCost: GenerationCost;
@@ -136,9 +151,52 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [activeView, setActiveView] = useState<'generator' | 'history'>('generator');
   const [currentHistoryRecord, setCurrentHistoryRecord] = useState<HistoryRecord | null>(null);
 
+  // Requirement-Level Version History State
+  const [requirementVersions, setRequirementVersions] = useState<Record<string, RequirementVersion[]>>({});
+
+  useEffect(() => {
+    requirementHistoryService.getAllVersions().then((versions) => {
+      setRequirementVersions(versions);
+    });
+  }, []);
+
+  const getRequirementVersions = useCallback(
+    (reqIdOrCode: string): RequirementVersion[] => {
+      if (!reqIdOrCode) return [];
+      const key = reqIdOrCode.toLowerCase();
+      if (requirementVersions[reqIdOrCode]) return requirementVersions[reqIdOrCode];
+      if (requirementVersions[key]) return requirementVersions[key];
+      for (const [k, v] of Object.entries(requirementVersions)) {
+        if (k.toLowerCase() === key) return v;
+        if (
+          v.length > 0 &&
+          (v[0].requirementId.toLowerCase() === key || v[0].requirementCode.toLowerCase() === key)
+        ) {
+          return v;
+        }
+      }
+      return [];
+    },
+    [requirementVersions]
+  );
+
+  const recordRequirementVersion = useCallback(
+    async (version: Omit<RequirementVersion, 'id' | 'versionNumber'>): Promise<RequirementVersion> => {
+      const newV = await requirementHistoryService.recordVersion(version);
+      setRequirementVersions((prev) => ({
+        ...prev,
+        [version.requirementId]: [...(prev[version.requirementId] || []), newV],
+        [version.requirementCode]: [...(prev[version.requirementCode] || []), newV],
+      }));
+      return newV;
+    },
+    []
+  );
+
   // Assistant Messages — Starts empty, responded ONLY upon explicit user interaction
   const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([]);
   const [isAssistantThinking, setIsAssistantThinking] = useState<boolean>(false);
+
 
   // Initialize theme from localStorage, default to 'light'
   useEffect(() => {
@@ -483,10 +541,47 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     setIsGeneratingModalOpen(false);
   }, []);
 
+  // Helper to record prior state in history before overwrite
+  const capturePriorVersion = useCallback((
+    reqId: string, 
+    reqCode: string, 
+    title: string, 
+    description: string, 
+    changeSummary: string = 'Requirement content edited'
+  ) => {
+    requirementHistoryService.recordVersion({
+      requirementId: reqId,
+      requirementCode: reqCode,
+      title,
+      description,
+      actor: 'Logaprasanth (User)',
+      timestamp: new Date().toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }),
+      changeType: 'EDIT',
+      changeSummary,
+    }).then((newV) => {
+      setRequirementVersions((prevMap) => ({
+        ...prevMap,
+        [reqId]: [...(prevMap[reqId] || []), newV],
+        [reqCode]: [...(prevMap[reqCode] || []), newV],
+      }));
+    });
+  }, []);
+
   // Requirements Update Handlers
   const updateProblemStatement = useCallback((id: string, updated: Partial<ProblemStatement>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
+      const currentItem = prev.requirements.problemStatements.find((item) => item.id === id);
+      if (currentItem && (updated.title !== undefined || updated.description !== undefined)) {
+        capturePriorVersion(currentItem.id, currentItem.code, currentItem.title, currentItem.description);
+      }
       return {
         ...prev,
         requirements: {
@@ -499,11 +594,15 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorVersion]);
 
   const updateBusinessObjective = useCallback((id: string, updated: Partial<BusinessObjective>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
+      const currentItem = prev.requirements.businessObjectives.find((item) => item.id === id);
+      if (currentItem && (updated.title !== undefined || updated.description !== undefined)) {
+        capturePriorVersion(currentItem.id, currentItem.code, currentItem.title, currentItem.description);
+      }
       return {
         ...prev,
         requirements: {
@@ -516,11 +615,15 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorVersion]);
 
   const updateBusinessRequirement = useCallback((id: string, updated: Partial<BusinessRequirement>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
+      const currentItem = prev.requirements.businessRequirements.find((item) => item.id === id);
+      if (currentItem && (updated.title !== undefined || updated.description !== undefined)) {
+        capturePriorVersion(currentItem.id, currentItem.code, currentItem.title, currentItem.description);
+      }
       return {
         ...prev,
         requirements: {
@@ -533,11 +636,15 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorVersion]);
 
   const updateFinanceRequirement = useCallback((id: string, updated: Partial<FinanceRequirement>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
+      const currentItem = prev.requirements.financeRequirements.find((item) => item.id === id);
+      if (currentItem && (updated.title !== undefined || updated.description !== undefined)) {
+        capturePriorVersion(currentItem.id, currentItem.code, currentItem.title, currentItem.description);
+      }
       return {
         ...prev,
         requirements: {
@@ -550,11 +657,15 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorVersion]);
 
   const updateTechnicalRequirement = useCallback((id: string, updated: Partial<TechnicalRequirement>) => {
     setWorkflow((prev) => {
       if (!prev.requirements) return prev;
+      const currentItem = prev.requirements.technicalRequirements.find((item) => item.id === id);
+      if (currentItem && (updated.title !== undefined || updated.description !== undefined)) {
+        capturePriorVersion(currentItem.id, currentItem.code, currentItem.title, currentItem.description);
+      }
       return {
         ...prev,
         requirements: {
@@ -567,7 +678,8 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         updatedAt: new Date().toISOString(),
       };
     });
-  }, []);
+  }, [capturePriorVersion]);
+
 
   const addAdditionalInformation = useCallback((info: Omit<AdditionalInformation, 'id' | 'createdAt'>) => {
     const newEntry: AdditionalInformation = {
@@ -753,8 +865,12 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         loadHistorySchema,
         startNewSchema,
         saveToHistory,
+        requirementVersions,
+        getRequirementVersions,
+        recordRequirementVersion,
         theme,
         setTheme,
+
         toggleTheme,
         generationCost,
         generateBusinessRequirement,

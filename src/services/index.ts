@@ -5,7 +5,8 @@ import {
   IAssistantService,
   IPricingService,
   IAuthService,
-  IHistoryService
+  IHistoryService,
+  IRequirementHistoryService,
 } from './interfaces';
 import { MockRequirementsGenerationService } from './mock/MockRequirementsGenerationService';
 import { MockClassGenerationService } from './mock/MockClassGenerationService';
@@ -14,6 +15,7 @@ import { MockAssistantService } from './mock/MockAssistantService';
 import { MockPricingService } from './mock/MockPricingService';
 import { MockAuthService } from './mock/MockAuthService';
 import { MockHistoryService } from './mock/MockHistoryService';
+import { MockRequirementHistoryService } from './mock/MockRequirementHistoryService';
 
 export * from './interfaces';
 export * from './mock/MockRequirementsGenerationService';
@@ -23,6 +25,7 @@ export * from './mock/MockAssistantService';
 export * from './mock/MockPricingService';
 export * from './mock/MockAuthService';
 export * from './mock/MockHistoryService';
+export * from './mock/MockRequirementHistoryService';
 
 // Service factory / registry allowing replacement with Real AI / Backend Services in future
 export const requirementsService: IRequirementsGenerationService = new MockRequirementsGenerationService();
@@ -32,4 +35,6 @@ export const assistantService: IAssistantService = new MockAssistantService();
 export const pricingService: IPricingService = new MockPricingService();
 export const authService: IAuthService = new MockAuthService();
 export const historyService: IHistoryService = new MockHistoryService();
+export const requirementHistoryService: IRequirementHistoryService = new MockRequirementHistoryService();
+
 
