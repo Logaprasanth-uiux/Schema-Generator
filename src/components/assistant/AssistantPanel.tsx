@@ -12,6 +12,28 @@ import {
 } from 'lucide-react';
 import { AssistantSuggestedAction } from '../../types';
 
+interface SuggestionChipProps {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export const SuggestionChip: React.FC<SuggestionChipProps> = ({ label, onClick, disabled }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className="w-full text-left text-[11px] font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-50/90 dark:bg-neutral-900/90 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-950 dark:hover:text-white border border-neutral-200/90 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 px-2.5 py-1.5 rounded-lg transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-600 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer group flex items-center justify-between gap-1.5"
+    >
+      <span className="truncate block leading-tight">{label}</span>
+      <ChevronRight className="h-3 w-3 text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 shrink-0 transition-colors" />
+    </button>
+  );
+};
+
 export const AssistantPanel: React.FC = () => {
   const { 
     workflow, 
@@ -66,6 +88,8 @@ export const AssistantPanel: React.FC = () => {
         ];
     }
   };
+
+  const promptChips = getStagePromptChips();
 
   if (isCollapsed) {
     return (
@@ -159,7 +183,7 @@ export const AssistantPanel: React.FC = () => {
                     <button
                       key={aIdx}
                       onClick={() => handleAssistantAction(action)}
-                      className="w-full text-left text-[11px] text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 px-2 py-1 rounded border border-neutral-200 dark:border-neutral-800 transition-colors flex items-center justify-between"
+                      className="w-full text-left text-[11px] text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 px-2 py-1 rounded border border-neutral-200 dark:border-neutral-800 transition-colors flex items-center justify-between cursor-pointer"
                     >
                       <span className="truncate">{action.label}</span>
                       <ChevronRight className="h-3 w-3 text-neutral-400 shrink-0 ml-1" />
@@ -181,21 +205,24 @@ export const AssistantPanel: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested Quick Prompt Chips (Subtle) */}
-      <div className="p-2.5 bg-white dark:bg-neutral-950/80 border-t border-neutral-200 dark:border-neutral-800 space-y-1 shrink-0">
-        <p className="text-[10px] font-medium text-neutral-400">Suggestions</p>
-        <div className="flex flex-col space-y-1">
-          {getStagePromptChips().map((chip, idx) => (
-            <button
-              key={idx}
-              onClick={() => sendAssistantMessage(chip)}
-              className="text-left text-[11px] text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-900 px-2 py-0.5 rounded truncate transition-colors"
-            >
-              {chip}
-            </button>
-          ))}
+      {/* Suggested Quick Prompt Chips (Compact Interactive Pills) */}
+      {promptChips && promptChips.length > 0 && (
+        <div className="p-2.5 bg-white dark:bg-neutral-950/80 border-t border-neutral-200 dark:border-neutral-800 space-y-1.5 shrink-0">
+          <p className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider px-0.5">
+            Suggestions
+          </p>
+          <div className="flex flex-col space-y-1.5">
+            {promptChips.map((chip, idx) => (
+              <SuggestionChip
+                key={idx}
+                label={chip}
+                onClick={() => sendAssistantMessage(chip)}
+                disabled={isAssistantThinking}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Input Form Footer */}
       <div className="p-2.5 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
@@ -211,7 +238,7 @@ export const AssistantPanel: React.FC = () => {
           <button
             onClick={handleSend}
             disabled={!inputMessage.trim() || isAssistantThinking}
-            className="absolute right-1 p-1 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 disabled:opacity-30 text-white dark:text-neutral-900 rounded-md transition-colors"
+            className="absolute right-1 p-1 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 disabled:opacity-30 text-white dark:text-neutral-900 rounded-md transition-colors cursor-pointer"
           >
             <Send className="h-3 w-3" />
           </button>

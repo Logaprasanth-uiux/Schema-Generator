@@ -32,6 +32,7 @@ interface WorkflowContextValue {
   loadSampleInput: () => void;
   addSupportingDocument: (doc: SupportingDocument) => void;
   removeSupportingDocument: (id: string) => void;
+  updateSupportingDocument: (id: string, updates: Partial<SupportingDocument>) => void;
   
   // App View Navigation
   activeView: 'generator' | 'history';
@@ -59,6 +60,8 @@ interface WorkflowContextValue {
   generateSchema: () => Promise<void>;
   isGeneratingModalOpen: boolean;
   closeGeneratingModal: () => void;
+  generationOperationLabel: string;
+  setGenerationOperationLabel: (label: string) => void;
 
   // Requirements updates
   updateProblemStatement: (id: string, updated: Partial<ProblemStatement>) => void;
@@ -125,6 +128,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [workflow, setWorkflow] = useState<SchemaGenerationWorkflow>(initialWorkflow);
   const [editedSchemaJson, setEditedSchemaJson] = useState<string>('');
   const [isGeneratingModalOpen, setIsGeneratingModalOpen] = useState<boolean>(false);
+  const [generationOperationLabel, setGenerationOperationLabel] = useState<string>('Generating…');
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
   const [generationCost, setGenerationCost] = useState<GenerationCost>(initialGenerationCost);
 
@@ -245,6 +249,19 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
     }));
   }, []);
 
+  const updateSupportingDocument = useCallback((id: string, updates: Partial<SupportingDocument>) => {
+    setWorkflow((prev) => ({
+      ...prev,
+      businessInput: {
+        ...prev.businessInput,
+        supportingDocuments: prev.businessInput.supportingDocuments.map((d) =>
+          d.id === id ? { ...d, ...updates } : d
+        ),
+      },
+      updatedAt: new Date().toISOString(),
+    }));
+  }, []);
+
   // History & Edit Mode Handlers
   const loadHistorySchema = useCallback((record: HistoryRecord) => {
     const loadedState = JSON.parse(JSON.stringify(record.workflowState)) as SchemaGenerationWorkflow;
@@ -288,6 +305,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Generation 1: High-Level Business Requirement -> Detailed Business Requirement
   const generateBusinessRequirement = useCallback(async () => {
+    setGenerationOperationLabel('Generating Business Requirement…');
     setIsGeneratingModalOpen(true);
     setWorkflow((prev) => ({
       ...prev,
@@ -333,6 +351,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Generation 2: Reviewed Business Requirement -> Structured Requirements
   const generateRequirements = useCallback(async () => {
+    setGenerationOperationLabel('Generating Requirements…');
     setIsGeneratingModalOpen(true);
     setWorkflow((prev) => ({
       ...prev,
@@ -375,6 +394,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Generation 3: Classes
   const generateClasses = useCallback(async () => {
     if (!workflow.requirements) return;
+    setGenerationOperationLabel('Generating Schema Classes…');
     setIsGeneratingModalOpen(true);
     setWorkflow((prev) => ({
       ...prev,
@@ -417,6 +437,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Generation 4: Schema
   const generateSchema = useCallback(async () => {
     if (!workflow.requirements || !workflow.classes) return;
+    setGenerationOperationLabel('Generating Schema…');
     setIsGeneratingModalOpen(true);
     setWorkflow((prev) => ({
       ...prev,
@@ -724,6 +745,7 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         loadSampleInput,
         addSupportingDocument,
         removeSupportingDocument,
+        updateSupportingDocument,
         activeView,
         setActiveView,
         currentHistoryRecord,
@@ -741,6 +763,8 @@ export const WorkflowProvider: React.FC<{ children: ReactNode }> = ({ children }
         generateSchema,
         isGeneratingModalOpen,
         closeGeneratingModal,
+        generationOperationLabel,
+        setGenerationOperationLabel,
         updateProblemStatement,
         updateBusinessObjective,
         updateBusinessRequirement,
