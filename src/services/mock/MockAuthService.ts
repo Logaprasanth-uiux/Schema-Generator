@@ -2,11 +2,19 @@ import { IAuthService } from '../interfaces';
 import { User } from '../../types';
 
 const STORAGE_KEY = 'datatwin_auth_user';
+const LOGOUT_FLAG_KEY = 'datatwin_user_logged_out';
+
+export const DEFAULT_USER: User = {
+  id: 'user-default',
+  email: 'admin@datatwin.ai',
+  name: 'Alex Mercer (Lead Architect)',
+  role: 'Enterprise Schema Lead',
+};
 
 export class MockAuthService implements IAuthService {
   async login(email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
     // Artificial small latency
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
@@ -32,6 +40,7 @@ export class MockAuthService implements IAuthService {
 
     try {
       if (typeof window !== 'undefined') {
+        localStorage.removeItem(LOGOUT_FLAG_KEY);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
       }
     } catch {}
@@ -42,6 +51,7 @@ export class MockAuthService implements IAuthService {
   async logout(): Promise<void> {
     try {
       if (typeof window !== 'undefined') {
+        localStorage.setItem(LOGOUT_FLAG_KEY, 'true');
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch {}
@@ -50,13 +60,23 @@ export class MockAuthService implements IAuthService {
   async getCurrentUser(): Promise<User | null> {
     try {
       if (typeof window !== 'undefined') {
+        if (localStorage.getItem(LOGOUT_FLAG_KEY) === 'true') {
+          return null;
+        }
         const data = localStorage.getItem(STORAGE_KEY);
         if (data) {
-          return JSON.parse(data) as User;
+          try {
+            return JSON.parse(data) as User;
+          } catch {
+            return DEFAULT_USER;
+          }
         }
+        // Auto-initialize demo user on first session
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USER));
+        return DEFAULT_USER;
       }
     } catch {}
-    return null;
+    return DEFAULT_USER;
   }
 
   async isAuthenticated(): Promise<boolean> {

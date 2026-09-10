@@ -27,6 +27,7 @@ import {
 import { SchemaTreeNode } from '../../types';
 import { StageActionBar } from '../layout/StageActionBar';
 import { VersionDiffViewer, VersionOption } from '../requirements/VersionDiffViewer';
+import { GenerateWithInfoModal } from '../common/GenerateWithInfoModal';
 
 export const SchemaStudioStage: React.FC = () => {
   const { 
@@ -37,8 +38,11 @@ export const SchemaStudioStage: React.FC = () => {
     saveSchemaChanges, 
     copySchemaJson,
     getSchemaVersions,
+    addAdditionalInformation,
     removeAdditionalInformation
   } = useWorkflow();
+
+  const [isProceedModalOpen, setIsProceedModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
@@ -292,7 +296,7 @@ export const SchemaStudioStage: React.FC = () => {
               <span>Save Copy</span>
             </button>
             <button
-              onClick={() => setStage('output')}
+              onClick={() => setIsProceedModalOpen(true)}
               className="flex items-center space-x-1.5 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-100 dark:text-neutral-900 font-semibold rounded-lg text-xs transition-all shadow-sm shrink-0 cursor-pointer"
             >
               <span>Proceed to Final Output</span>
@@ -549,6 +553,20 @@ export const SchemaStudioStage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Proceed with Info Modal */}
+      <GenerateWithInfoModal
+        isOpen={isProceedModalOpen}
+        onClose={() => setIsProceedModalOpen(false)}
+        onGenerate={(info) => {
+          if (info) {
+            addAdditionalInformation(info);
+          }
+          setStage('output');
+        }}
+        title="Do you want to add any additional information?"
+        generationLabel="Proceed to Final Output"
+      />
     </div>
   );
 };

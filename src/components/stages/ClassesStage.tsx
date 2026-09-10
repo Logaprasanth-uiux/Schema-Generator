@@ -15,7 +15,8 @@ import {
   Layers,
   AlertTriangle,
   Sparkles,
-  Paperclip
+  Paperclip,
+  Eye
 } from 'lucide-react';
 import { SchemaClass, ClassVersion, SchemaComponent } from '../../types';
 import { StageActionBar } from '../layout/StageActionBar';
@@ -23,12 +24,14 @@ import { RequirementCategoryChip } from '../common/RequirementCategoryChip';
 import { VersionDiffViewer, VersionOption } from '../requirements/VersionDiffViewer';
 import { formatClassSpecification } from '../../utils/classUtils';
 import { GenerateWithInfoModal } from '../common/GenerateWithInfoModal';
+import { ClassViewModal } from '../classes/ClassViewModal';
 
 interface ClassRowProps {
   item: SchemaClass;
   isEditing: boolean;
   isHistoryOpen: boolean;
   versions: ClassVersion[];
+  onView: () => void;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: (updated: Partial<SchemaClass>) => void;
@@ -42,6 +45,7 @@ const ClassRow: React.FC<ClassRowProps> = ({
   isEditing,
   isHistoryOpen,
   versions,
+  onView,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -227,6 +231,16 @@ const ClassRow: React.FC<ClassRowProps> = ({
             {/* Action Buttons */}
             {!isEditing && !isHistoryOpen && (
               <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={onView}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white bg-neutral-100/80 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  title="View domain class details and output"
+                >
+                  <Eye className="h-3 w-3 text-neutral-500" />
+                  <span>View</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={onOpenHistory}
@@ -533,6 +547,7 @@ export const ClassesStage: React.FC = () => {
   // Single-open state for Class Editor or History (matches Requirements screen)
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [historyClassId, setHistoryClassId] = useState<string | null>(null);
+  const [viewingClass, setViewingClass] = useState<SchemaClass | null>(null);
   const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
@@ -586,18 +601,19 @@ export const ClassesStage: React.FC = () => {
       formulaRules: [],
       components: [
         {
-          id: `comp-${Date.now()}`,
-          name: 'CustomParameter',
+          id: `comp-${Date.now()}-1`,
+          name: 'amount',
           type: 'MATH',
-          expression: '1.0',
+          expression: 'amount',
+          description: 'Calculated transaction component amount',
         },
       ],
-      criteria: ['documentnumber EQ *'],
+      criteria: ['forprdfrom, forprdto overlap logic'],
       conditions: [],
       expectedOutput: 'TT',
       dependencies: ['NA'],
-      exposes: ['CustomParameter'],
-      reviewPoints: 'Newly added custom schema class.',
+      exposes: ['amount'],
+      reviewPoints: 'Verify datasource connectivity and column mappings.',
       isCustomAdded: true,
     };
     addClass(newCls);
@@ -611,7 +627,7 @@ export const ClassesStage: React.FC = () => {
       {/* 1. Sticky Workspace Top Action Bar */}
       <StageActionBar
         title="Domain Classes Architecture"
-        description={`${classes.length} classes configured with grains, formulas, and dependencies.`}
+        description={`Designed ${classes.length} composable SCDP domain processing classes.`}
         leftActions={
           <button
             onClick={() => setStage('requirements')}
@@ -702,6 +718,7 @@ export const ClassesStage: React.FC = () => {
               isEditing={editingClassId === cls.id}
               isHistoryOpen={historyClassId === cls.id}
               versions={versions}
+              onView={() => setViewingClass(cls)}
               onStartEdit={() => {
                 setEditingClassId(cls.id);
                 setHistoryClassId(null);
@@ -814,6 +831,13 @@ export const ClassesStage: React.FC = () => {
         }}
         title="Do you want to add any additional information?"
         generationLabel="Generate Schema"
+      />
+
+      {/* View Class Details Modal */}
+      <ClassViewModal
+        isOpen={!!viewingClass}
+        onClose={() => setViewingClass(null)}
+        cls={viewingClass}
       />
     </div>
   );

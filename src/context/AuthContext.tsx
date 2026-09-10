@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User } from '../types';
-import { authService } from '../services';
+import { authService, DEFAULT_USER } from '../services';
 
 interface AuthContextValue {
   user: User | null;
@@ -15,16 +15,24 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(DEFAULT_USER);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
+    let isMounted = true;
     authService.getCurrentUser().then((currentUser) => {
-      setUser(currentUser);
-      setIsLoading(false);
+      if (isMounted) {
+        setUser(currentUser);
+        setIsLoading(false);
+      }
     }).catch(() => {
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
